@@ -10,6 +10,8 @@ class RemoteAnnotator(ABC):
 
     name: str = "unnamed"
     annotation_type: str = "unknown"
+    description: str = ""
+    labels: list[str] = []
     base_url: str = ""
 
     def __init__(

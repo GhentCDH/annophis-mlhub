@@ -31,6 +31,8 @@ class _WorkRequest(BaseModel):
 class _WorkerInfo(BaseModel):
     name: str
     annotation_type: str
+    description: str = ""
+    labels: list[str] = []
     status: str = "ok"
 
 
@@ -91,6 +93,8 @@ def create_worker_app(
         return _WorkerInfo(
             name=worker.name,
             annotation_type=worker.annotation_type,
+            description=worker.description,
+            labels=worker.labels,
         )
 
     @app.get("/info", response_model=_WorkerInfo)
@@ -98,6 +102,8 @@ def create_worker_app(
         return _WorkerInfo(
             name=worker.name,
             annotation_type=worker.annotation_type,
+            description=worker.description,
+            labels=worker.labels,
         )
 
     @app.post("/annotate", response_model=AnnotationResult)

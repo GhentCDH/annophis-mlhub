@@ -42,3 +42,5 @@ class AnnotatorInfo(BaseModel):
     name: str
     annotation_type: str
     kind: str  # "local" or "remote"
+    description: str = ""
+    labels: list[str] = []

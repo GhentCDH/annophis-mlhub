@@ -1,6 +1,10 @@
+import logging
+
 import uvicorn
 
 from konekaare.config import settings
+
+logging.basicConfig(level=logging.INFO)
 
 
 def main():

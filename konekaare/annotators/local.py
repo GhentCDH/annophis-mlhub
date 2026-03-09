@@ -17,6 +17,8 @@ class LocalAnnotator(ABC):
 
     name: str = "unnamed"
     annotation_type: str = "unknown"
+    description: str = ""
+    labels: list[str] = []
 
     def __init__(
         self,

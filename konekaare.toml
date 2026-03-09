@@ -24,3 +24,11 @@ name = "colinmodel"
 annotation_type = "pos"
 class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
+
+[[annotator]]
+name = "hf-ner"
+annotation_type = "ner"
+class_path = "konekaare.annotators.huggingface.HuggingFaceAnnotator"
+model = "dslim/bert-base-NER"
+token = "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"
+base_url = "https://router.huggingface.co/hf-inference"

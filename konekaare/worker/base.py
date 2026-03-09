@@ -17,6 +17,8 @@ class ModelWorker(ABC):
 
     name: str = "unnamed"
     annotation_type: str = "unknown"
+    description: str = ""
+    labels: list[str] = []
 
     def __init__(self, name: str | None = None, annotation_type: str | None = None):
         if name is not None:
