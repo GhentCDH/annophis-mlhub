@@ -1,0 +1,15 @@
+# Annotators are defined as [[annotator]] entries.
+# Each needs: name, annotation_type, class_path.
+# Any extra fields are passed to the annotator constructor.
+
+[[annotator]]
+name = "dummy-ner"
+annotation_type = "ner"
+class_path = "konekaare.annotators.dummy.DummyNerAnnotator"
+
+# Example remote annotator:
+# [[annotator]]
+# name = "remote-pos"
+# annotation_type = "pos"
+# class_path = "my_annotators.RemotePosAnnotator"
+# base_url = "https://api.example.com/pos"
