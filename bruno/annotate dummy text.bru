@@ -1,0 +1,22 @@
+meta {
+  name: annotate dummy text
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base}}/annotate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "text": "This is a very good text, written by Miel Peeters."
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

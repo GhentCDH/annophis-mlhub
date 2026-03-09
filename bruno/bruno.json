@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Konekaare",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
