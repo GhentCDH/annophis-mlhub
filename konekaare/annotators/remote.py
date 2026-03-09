@@ -10,13 +10,20 @@ class RemoteAnnotator(ABC):
 
     name: str = "unnamed"
     annotation_type: str = "unknown"
+    base_url: str = ""
 
-    def __init__(self, name: str | None = None, annotation_type: str | None = None, base_url: str = ""):
+    def __init__(
+        self,
+        name: str | None = None,
+        annotation_type: str | None = None,
+        base_url: str | None = None,
+    ):
         if name is not None:
             self.name = name
         if annotation_type is not None:
             self.annotation_type = annotation_type
-        self.base_url = base_url
+        if base_url is not None:
+            self.base_url = base_url
         self._client: httpx.AsyncClient | None = None
 
     async def get_client(self) -> httpx.AsyncClient:
@@ -51,13 +58,11 @@ class GenericRemoteAnnotator(RemoteAnnotator):
 
     def __init__(
         self,
-        name: str,
-        annotation_type: str,
-        base_url: str,
         endpoint: str = "/annotate",
         timeout: float = 30.0,
+        **kwargs,
     ):
-        super().__init__(name, annotation_type, base_url)
+        super().__init__(**kwargs)
         self.endpoint = endpoint
         self.timeout = timeout
 
