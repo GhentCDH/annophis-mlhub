@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from konekaare.models import AnnotationRequest, AnnotationResult
+from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
 
 # Default max concurrent inference threads across all local annotators.
 _DEFAULT_MAX_CONCURRENCY = 1
@@ -37,6 +37,14 @@ class LocalAnnotator(ABC):
         """Synchronous, blocking annotation. Runs in a thread."""
         ...
 
+    @abstractmethod
+    def info_sync(self) -> AnnotatorInfo:
+        """Synchronous model information endpoint"""
+        ...
+
     async def annotate(self, request: AnnotationRequest) -> AnnotationResult:
         async with self._semaphore:
             return await asyncio.to_thread(self.annotate_sync, request)
+
+    async def info(self) -> AnnotatorInfo:
+        return self.info_sync()

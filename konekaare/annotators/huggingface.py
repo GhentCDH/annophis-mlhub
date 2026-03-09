@@ -25,7 +25,7 @@ Or with class-level defaults:
 import logging
 
 from konekaare.annotators.remote import RemoteAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult, Span
+from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,8 @@ class HuggingFaceAnnotator(RemoteAnnotator):
         [{"label": "PER", "text": "Alice", "start": 0, "end": 5}]
     """
 
+    description: str = "HuggingFace Inference API NER model."
+    labels: list[str] = []
     base_url: str = "https://router.huggingface.co"
     model: str = "dslim/bert-base-NER"
     token: str = ""
@@ -83,4 +85,13 @@ class HuggingFaceAnnotator(RemoteAnnotator):
             annotator=self.name,
             annotation_type=self.annotation_type,
             spans=spans,
+        )
+
+    async def info(self) -> AnnotatorInfo:
+        return AnnotatorInfo(
+            name=self.name,
+            annotation_type=self.annotation_type,
+            kind="remote",
+            description=self.description,
+            labels=self.labels,
         )

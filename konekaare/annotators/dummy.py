@@ -1,11 +1,14 @@
 import re
 
 from konekaare.annotators.local import LocalAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult, Span
+from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
 
 
 class DummyNerAnnotator(LocalAnnotator):
     """Dummy NER annotator that finds capitalized words."""
+
+    description = "Regex-based NER that matches capitalized words."
+    labels = ["ENTITY"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -25,4 +28,13 @@ class DummyNerAnnotator(LocalAnnotator):
             annotator=self.name,
             annotation_type=self.annotation_type,
             spans=spans,
+        )
+
+    def info_sync(self) -> AnnotatorInfo:
+        return AnnotatorInfo(
+            name=self.name,
+            annotation_type=self.annotation_type,
+            kind="local",
+            description=self.description,
+            labels=self.labels,
         )

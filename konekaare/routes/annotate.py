@@ -10,6 +10,7 @@ router = APIRouter()
 
 @router.post("/annotate", response_model=AnnotationResponse)
 async def annotate(request: AnnotationRequest) -> AnnotationResponse:
+    """Annotate a piece of text, with all or a subset of annotators"""
     available = annotators.all()
     names = request.annotators or list(available.keys())
 

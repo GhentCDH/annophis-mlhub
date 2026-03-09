@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import httpx
 
-from konekaare.models import AnnotationRequest, AnnotationResult
+from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
 
 
 class RemoteAnnotator(ABC):
@@ -36,6 +36,9 @@ class RemoteAnnotator(ABC):
     @abstractmethod
     async def annotate(self, request: AnnotationRequest) -> AnnotationResult: ...
 
+    @abstractmethod
+    async def info(self) -> AnnotatorInfo: ...
+
     async def close(self) -> None:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
@@ -62,11 +65,15 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         self,
         endpoint: str = "/annotate",
         timeout: float = 30.0,
+        labels: list[str] | None = None,
+        description: str = "",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.endpoint = endpoint
         self.timeout = timeout
+        self.labels = [] if labels is None else labels
+        self.description = [] if description is None else description
 
     async def annotate(self, request: AnnotationRequest) -> AnnotationResult:
         client = await self.get_client()
@@ -81,4 +88,17 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             annotator=self.name,
             annotation_type=self.annotation_type,
             spans=data["spans"],
+        )
+
+    async def info(self) -> AnnotatorInfo:
+        client = await self.get_client()
+        resp = await client.get("/info")
+        resp.raise_for_status()
+        data = resp.json()
+        return AnnotatorInfo(
+            name=data["name"],
+            annotation_type=data["annotation_type"],
+            description=data["description"],
+            labels=data["labels"],
+            kind=data["kind"],
         )

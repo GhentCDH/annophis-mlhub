@@ -1,6 +1,6 @@
 from typing import Protocol, runtime_checkable
 
-from konekaare.models import AnnotationRequest, AnnotationResult
+from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
 
 
 # The Annotator Protocol: duck typing; any class that has these properties is an 'Annotator',
@@ -13,3 +13,5 @@ class Annotator(Protocol):
     annotation_type: str
 
     async def annotate(self, request: AnnotationRequest) -> AnnotationResult: ...
+
+    async def info(self) -> AnnotatorInfo: ...

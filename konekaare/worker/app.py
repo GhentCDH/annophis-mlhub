@@ -20,7 +20,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from konekaare.models import AnnotationResult, Span
+from konekaare.models import AnnotationResult, AnnotatorInfo
 from konekaare.worker.base import ModelWorker
 
 
@@ -28,11 +28,7 @@ class _WorkRequest(BaseModel):
     text: str
 
 
-class _WorkerInfo(BaseModel):
-    name: str
-    annotation_type: str
-    description: str = ""
-    labels: list[str] = []
+class _WorkerInfo(AnnotatorInfo):
     status: str = "ok"
 
 
@@ -95,6 +91,7 @@ def create_worker_app(
             annotation_type=worker.annotation_type,
             description=worker.description,
             labels=worker.labels,
+            kind="remote",
         )
 
     @app.get("/info", response_model=_WorkerInfo)
@@ -104,6 +101,7 @@ def create_worker_app(
             annotation_type=worker.annotation_type,
             description=worker.description,
             labels=worker.labels,
+            kind="remote",
         )
 
     @app.post("/annotate", response_model=AnnotationResult)
