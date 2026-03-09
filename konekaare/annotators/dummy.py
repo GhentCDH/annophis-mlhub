@@ -7,9 +7,8 @@ from konekaare.models import AnnotationRequest, AnnotationResult, Span
 class DummyNerAnnotator(LocalAnnotator):
     """Dummy NER annotator that finds capitalized words."""
 
-    def __init__(self, name: str, annotation_type: str):
-        self.name = name
-        self.annotation_type = annotation_type
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
         spans = []

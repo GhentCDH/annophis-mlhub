@@ -4,9 +4,8 @@ from konekaare.models import AnnotationRequest, AnnotationResult, Span
 
 
 class DummyAnnotator(LocalAnnotator):
-    def __init__(self):
-        self.name = "dummy"
-        self.annotation_type = "test"
+    name = "dummy"
+    annotation_type = "test"
 
     def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
         return AnnotationResult(

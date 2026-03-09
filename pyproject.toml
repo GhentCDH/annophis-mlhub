@@ -3,7 +3,7 @@ name = "konekaare"
 version = "0.1.0"
 description = "Text annotation API"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
@@ -20,6 +20,9 @@ dev = [
     "httpx",
     "ruff>=0.9",
 ]
+
+[tool.setuptools.packages.find]
+include = ["konekaare*"]
 
 [project.scripts]
 konekaare = "main:main"

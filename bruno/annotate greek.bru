@@ -1,0 +1,23 @@
+meta {
+  name: annotate greek
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base}}/annotate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "text": "πῆναξ σὺν θεῶ ἁγ(ίας) τῆς βίβλου ταύτης",
+    "annotator": "colinmodel"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

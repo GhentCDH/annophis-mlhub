@@ -22,9 +22,14 @@ konekaare/
 ├── annotators/
 │   ├── __init__.py            # registry: register(), get(), all(), clear()
 │   ├── base.py                # Annotator Protocol
-│   ├── local.py               # LocalAnnotator ABC (asyncio.to_thread)
-│   ├── remote.py              # RemoteAnnotator ABC (httpx)
+│   ├── local.py               # LocalAnnotator ABC (semaphore-bounded concurrency)
+│   ├── remote.py              # RemoteAnnotator ABC + GenericRemoteAnnotator
 │   └── dummy.py               # example: regex-based NER annotator
+├── worker/
+│   ├── __init__.py            # public API: ModelWorker, Span, create_worker_app
+│   ├── base.py                # ModelWorker ABC (implement load + predict)
+│   ├── app.py                 # FastAPI app factory with internal queue
+│   └── __main__.py            # CLI: python -m konekaare.worker serve
 └── routes/
     ├── annotate.py            # POST /annotate
     └── health.py              # GET /health, GET /annotators
@@ -32,9 +37,50 @@ konekaare/
 
 ## Adding an annotator
 
-1. Write a class extending `LocalAnnotator` (blocking) or `RemoteAnnotator` (API-backed)
-2. Add an `[[annotator]]` entry in `konekaare.toml` with `name`, `annotation_type`, `class_path`
-3. Any extra TOML fields are passed as kwargs to the constructor
+### Local annotator
+
+1. Subclass `LocalAnnotator`, implement `annotate_sync()`
+2. Constructor must call `super().__init__(name, annotation_type)`
+3. Optional `max_concurrency` kwarg controls parallel thread access (default: 1)
+4. Add `[[annotator]]` entry in `konekaare.toml`
+
+### Remote annotator (generic)
+
+No subclassing needed — use `GenericRemoteAnnotator` directly in TOML:
+
+```toml
+[[annotator]]
+name = "remote-ner"
+annotation_type = "ner"
+class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+base_url = "http://localhost:8001"
+```
+
+The remote service must speak the konekaare protocol: `POST /annotate` accepting `{"text": "..."}` and returning `{"annotator": "...", "annotation_type": "...", "spans": [...]}`.
+
+### Worker harness (model service)
+
+Wrap any ML model into a konekaare-compatible service:
+
+```python
+from konekaare.worker import ModelWorker, Span
+
+class MyModel(ModelWorker):
+    def load(self):
+        self.model = ...  # load weights
+
+    def predict(self, text: str) -> list[Span]:
+        ...  # return list of Span
+```
+
+Run with:
+
+```
+python -m konekaare.worker serve my_module:MyModel \
+    --name my-ner --annotation-type ner --port 8001
+```
+
+The harness provides `/annotate`, `/health`, `/info` endpoints and an internal queue that serializes inference through a single worker thread (safe for GPU models).
 
 ## Running
 
@@ -55,6 +101,9 @@ Tests use a nonexistent config path by default so no annotators load. Use the `_
 ## Key design decisions
 
 - All annotators are async at the interface. Local ones wrap blocking work with `asyncio.to_thread`.
+- `LocalAnnotator` uses an `asyncio.Semaphore` to bound concurrent inference (default: 1, serialized).
 - Multiple annotators run concurrently via `asyncio.gather`.
 - Annotator registry is a plain dict, populated at startup from `konekaare.toml`.
 - `class_path` in config enables dynamic import — new annotators need no core code changes.
+- `GenericRemoteAnnotator` eliminates subclassing for standard-protocol remote services.
+- Worker harness uses `asyncio.Queue` → single worker thread pattern for safe GPU inference.

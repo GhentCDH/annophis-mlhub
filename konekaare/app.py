@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
     for ann in annotators.all().values():
         if hasattr(ann, "close"):
-            await ann.close()
+            await ann.close()  # ty:ignore[call-non-callable]
 
 
 def create_app() -> FastAPI:

@@ -7,9 +7,20 @@ name = "dummy-ner"
 annotation_type = "ner"
 class_path = "konekaare.annotators.dummy.DummyNerAnnotator"
 
-# Example remote annotator:
+# Example: generic remote annotator (no custom subclass needed).
+# The remote service must speak the konekaare protocol (POST /annotate).
+# Start a model service with: python -m konekaare.worker serve my_module:MyModel
+#
 # [[annotator]]
-# name = "remote-pos"
-# annotation_type = "pos"
-# class_path = "my_annotators.RemotePosAnnotator"
-# base_url = "https://api.example.com/pos"
+# name = "remote-ner"
+# annotation_type = "ner"
+# class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+# base_url = "http://localhost:8001"
+# endpoint = "/annotate"     # optional, defaults to /annotate
+# timeout = 30.0             # optional, defaults to 30s
+
+[[annotator]]
+name = "colinmodel"
+annotation_type = "pos"
+class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+base_url = "http://localhost:10000"
