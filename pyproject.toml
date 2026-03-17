@@ -11,6 +11,7 @@ dependencies = [
   "pydantic-settings>=2.7",
   "httpx>=0.28",
   "scalar-fastapi>=1.7",
+  "rich>=14.3.3",
 ]
 
 [project.optional-dependencies]

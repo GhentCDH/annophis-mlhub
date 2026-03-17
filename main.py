@@ -1,10 +1,16 @@
 import logging
 
 import uvicorn
+from rich.logging import RichHandler
 
 from konekaare.config import settings
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True)],
+)
 
 
 def main():
