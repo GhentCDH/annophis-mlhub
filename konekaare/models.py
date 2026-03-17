@@ -44,3 +44,4 @@ class AnnotatorInfo(BaseModel):
     kind: str  # "local" or "remote"
     description: str = ""
     labels: list[str] = []
+    available: bool = True

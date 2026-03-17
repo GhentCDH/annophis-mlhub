@@ -32,3 +32,5 @@ class_path = "konekaare.annotators.huggingface.HuggingFaceAnnotator"
 model = "dslim/bert-base-NER"
 token = "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"
 base_url = "https://router.huggingface.co/hf-inference"
+description = "Huggingface NER model (dslim/bert-base-NER)"
+labels = ["MANY"]

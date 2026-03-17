@@ -37,10 +37,15 @@ class LocalAnnotator(ABC):
         """Synchronous, blocking annotation. Runs in a thread."""
         ...
 
-    @abstractmethod
     def info_sync(self) -> AnnotatorInfo:
-        """Synchronous model information endpoint"""
-        ...
+        """Return metadata about this annotator. Override to customise."""
+        return AnnotatorInfo(
+            name=self.name,
+            annotation_type=self.annotation_type,
+            kind="local",
+            description=self.description,
+            labels=self.labels,
+        )
 
     async def annotate(self, request: AnnotationRequest) -> AnnotationResult:
         async with self._semaphore:
