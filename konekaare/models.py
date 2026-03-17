@@ -14,7 +14,7 @@ class Span(BaseModel):
 
 class AnnotationRequest(BaseModel):
     text: str
-    annotators: list[str] | None = None
+    annotators: list[str]
 
 
 class AnnotationResult(BaseModel):
