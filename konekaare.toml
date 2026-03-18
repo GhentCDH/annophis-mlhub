@@ -7,6 +7,12 @@ name = "dummy-ner"
 annotation_type = "ner"
 class_path = "konekaare.annotators.dummy.DummyNerAnnotator"
 
+[[annotator]]
+name = "slow-ner"
+annotation_type = "ner"
+class_path = "konekaare.annotators.slow_dummy.SlowDummyAnnotator"
+delay = 1.0
+
 # Example: generic remote annotator (no custom subclass needed).
 # The remote service must speak the konekaare protocol (POST /annotate).
 # Start a model service with: python -m konekaare.worker serve my_module:MyModel
