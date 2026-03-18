@@ -38,6 +38,18 @@ class AnnotationResponse(BaseModel):
     annotations: list[AnnotationLayer]
 
 
+class WsInputUnit(BaseModel):
+    id: str
+    text: str
+
+
+class WsOutputUnit(BaseModel):
+    id: str
+    annotator: str
+    annotation_type: str
+    spans: list[Span]
+
+
 class AnnotatorInfo(BaseModel):
     name: str
     annotation_type: str

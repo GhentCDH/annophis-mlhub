@@ -67,3 +67,27 @@ def test_worker_annotate_no_matches(client):
     resp = client.post("/annotate", json={"text": "all lowercase here"})
     assert resp.status_code == 200
     assert resp.json()["spans"] == []
+
+
+def test_worker_ws_single(client):
+    with client.websocket_connect("/annotate") as ws:
+        ws.send_json({"id": "1", "text": "hello WORLD"})
+        result = ws.receive_json()
+    assert result["id"] == "1"
+    assert result["annotator"] == "upper"
+    assert result["annotation_type"] == "test"
+    assert any(s["text"] == "WORLD" for s in result["spans"])
+
+
+def test_worker_ws_multiple(client):
+    with client.websocket_connect("/annotate") as ws:
+        ws.send_json({"id": "1", "text": "HELLO there"})
+        ws.send_json({"id": "2", "text": "lowercase only"})
+        ws.send_json({"id": "3", "text": "NASA and ESA"})
+        results = [ws.receive_json(), ws.receive_json(), ws.receive_json()]
+    ids = {r["id"] for r in results}
+    assert ids == {"1", "2", "3"}
+    by_id = {r["id"]: r for r in results}
+    assert any(s["text"] == "HELLO" for s in by_id["1"]["spans"])
+    assert by_id["2"]["spans"] == []
+    assert {s["text"] for s in by_id["3"]["spans"]} == {"NASA", "ESA"}

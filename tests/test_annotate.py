@@ -1,3 +1,5 @@
+import pytest
+
 from konekaare import annotators
 from konekaare.annotators.local import LocalAnnotator
 from konekaare.models import AnnotationRequest, AnnotationResult, Span
@@ -38,7 +40,7 @@ def test_list_annotators_with_dummy(client):
 
 
 def test_annotate_no_annotators(client):
-    resp = client.post("/annotate", json={"text": "hello world"})
+    resp = client.post("/annotate", json={"text": "hello world", "annotators": []})
     assert resp.status_code == 200
     data = resp.json()
     assert data["text"] == "hello world"
@@ -47,7 +49,7 @@ def test_annotate_no_annotators(client):
 
 def test_annotate_with_dummy(client):
     annotators.register(DummyAnnotator())
-    resp = client.post("/annotate", json={"text": "hello world"})
+    resp = client.post("/annotate", json={"text": "hello world", "annotators": ["dummy"]})
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["annotations"]) == 1
@@ -62,6 +64,27 @@ def test_annotate_unknown_annotator(client):
     assert resp.status_code == 404
 
 
+def test_ws_annotate_local(client):
+    annotators.register(DummyAnnotator())
+    with client.websocket_connect("/annotate?annotators=dummy") as ws:
+        ws.send_json({"id": "a", "text": "hello world"})
+        ws.send_json({"id": "b", "text": "foo bar"})
+        results = [ws.receive_json(), ws.receive_json()]
+    ids = {r["id"] for r in results}
+    assert ids == {"a", "b"}
+    for r in results:
+        assert r["annotator"] == "dummy"
+        assert r["annotation_type"] == "test"
+        assert len(r["spans"]) == 1
+
+
+def test_ws_annotate_unknown(client):
+    with client.websocket_connect("/annotate?annotators=nonexistent") as ws:
+        msg = ws.receive_json()
+    assert "error" in msg
+    assert "nonexistent" in msg["error"]
+
+
 def test_dummy_ner_from_config(_use_real_config, client):
     """Test the dummy-ner annotator loaded from konekaare.toml."""
     resp = client.get("/annotators")
@@ -70,7 +93,7 @@ def test_dummy_ner_from_config(_use_real_config, client):
     assert "dummy-ner" in names
 
     resp = client.post(
-        "/annotate", json={"text": "Alice went to Paris"}
+        "/annotate", json={"text": "Alice went to Paris", "annotators": ["dummy-ner"]}
     )
     assert resp.status_code == 200
     data = resp.json()

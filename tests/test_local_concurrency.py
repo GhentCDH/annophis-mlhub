@@ -30,7 +30,7 @@ class SlowAnnotator(LocalAnnotator):
 async def test_semaphore_serializes_access():
     """With max_concurrency=1, requests should be serialized."""
     ann = SlowAnnotator(delay=0.05, max_concurrency=1)
-    req = AnnotationRequest(text="test")
+    req = AnnotationRequest(text="test", annotators=[])
 
     start = time.monotonic()
     await asyncio.gather(*(ann.annotate(req) for _ in range(3)))
@@ -44,7 +44,7 @@ async def test_semaphore_serializes_access():
 async def test_higher_concurrency_is_faster():
     """With max_concurrency=3, all requests can run in parallel."""
     ann = SlowAnnotator(delay=0.05, max_concurrency=3)
-    req = AnnotationRequest(text="test")
+    req = AnnotationRequest(text="test", annotators=[])
 
     start = time.monotonic()
     await asyncio.gather(*(ann.annotate(req) for _ in range(3)))

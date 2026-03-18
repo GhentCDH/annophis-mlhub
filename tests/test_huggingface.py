@@ -52,7 +52,7 @@ async def test_translates_hf_response(annotator, monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
-    result = await annotator.annotate(AnnotationRequest(text="Alice went to Paris"))
+    result = await annotator.annotate(AnnotationRequest(text="Alice went to Paris", annotators=[]))
 
     assert result.annotator == "hf-ner"
     assert result.annotation_type == "ner"
@@ -104,7 +104,7 @@ async def test_no_auth_header_without_token(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
-    result = await ann.annotate(AnnotationRequest(text="hello"))
+    result = await ann.annotate(AnnotationRequest(text="hello", annotators=[]))
     assert result.spans == []
 
     await ann.close()

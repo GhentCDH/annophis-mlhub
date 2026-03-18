@@ -182,6 +182,7 @@ dependencies = [
     { name = "rich" },
     { name = "scalar-fastapi" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -205,6 +206,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9" },
     { name = "scalar-fastapi", specifier = ">=1.7" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },
+    { name = "websockets", specifier = ">=13" },
 ]
 provides-extras = ["dev"]
 

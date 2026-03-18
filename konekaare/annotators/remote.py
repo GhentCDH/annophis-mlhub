@@ -1,8 +1,24 @@
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 
 import httpx
+import websockets
 
-from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
+from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
+
+
+class _WsSession:
+    """Thin wrapper around a websockets connection for streaming annotation."""
+
+    def __init__(self, ws):
+        self._ws = ws
+
+    async def send(self, unit: WsInputUnit) -> None:
+        await self._ws.send(unit.model_dump_json())
+
+    async def __aiter__(self):
+        async for message in self._ws:
+            yield WsOutputUnit.model_validate_json(message)
 
 
 class RemoteAnnotator(ABC):
@@ -44,6 +60,9 @@ class RemoteAnnotator(ABC):
 
     @abstractmethod
     async def info(self) -> AnnotatorInfo: ...
+
+    def stream_session(self):
+        raise NotImplementedError(f"{type(self).__name__} does not support stream_session()")
 
     async def close(self) -> None:
         if self._client and not self._client.is_closed:
@@ -99,3 +118,9 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             labels=data["labels"],
             kind=data["kind"],
         )
+
+    @asynccontextmanager
+    async def stream_session(self):
+        ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://")
+        async with websockets.connect(f"{ws_url}/annotate") as ws:
+            yield _WsSession(ws)

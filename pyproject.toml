@@ -12,6 +12,7 @@ dependencies = [
   "httpx>=0.28",
   "scalar-fastapi>=1.7",
   "rich>=14.3.3",
+  "websockets>=13",
 ]
 
 [project.optional-dependencies]

@@ -24,6 +24,8 @@ name = "colinmodel"
 annotation_type = "pos"
 class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
+description = "DBBert model for Part of Speech. Excpects greek"
+labels = ["POS", "DBBert", "remote", "greek"]
 
 [[annotator]]
 name = "hf-ner"

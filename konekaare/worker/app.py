@@ -17,10 +17,10 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from konekaare.models import AnnotationResult, AnnotatorInfo
+from konekaare.models import AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
 from konekaare.worker.base import ModelWorker
 
 
@@ -110,5 +110,50 @@ def create_worker_app(
         future: asyncio.Future[AnnotationResult] = loop.create_future()
         await queue.put(_QueueItem(text=req.text, future=future))
         return await future
+
+    @app.websocket("/annotate")
+    async def ws_annotate(websocket: WebSocket):
+        await websocket.accept()
+        loop = asyncio.get_running_loop()
+        result_queue: asyncio.Queue = asyncio.Queue()
+
+        async def receive():
+            try:
+                while True:
+                    data = await websocket.receive_json()
+                    unit = WsInputUnit(**data)
+                    future = loop.create_future()
+                    future.add_done_callback(
+                        lambda f, uid=unit.id: result_queue.put_nowait((uid, f))
+                    )
+                    await queue.put(_QueueItem(text=unit.text, future=future))
+            except WebSocketDisconnect:
+                pass
+            finally:
+                result_queue.put_nowait(None)
+
+        async def send():
+            while True:
+                item = await result_queue.get()
+                if item is None:
+                    break
+                uid, future = item
+                try:
+                    result = future.result()
+                    await websocket.send_json(
+                        WsOutputUnit(
+                            id=uid,
+                            annotator=result.annotator,
+                            annotation_type=result.annotation_type,
+                            spans=result.spans,
+                        ).model_dump()
+                    )
+                except Exception as exc:
+                    try:
+                        await websocket.send_json({"id": uid, "error": str(exc)})
+                    except Exception:
+                        pass
+
+        await asyncio.gather(receive(), send())
 
     return app
