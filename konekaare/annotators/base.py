@@ -11,6 +11,8 @@ class Annotator(Protocol):
 
     name: str
     annotation_type: str
+    description: str
+    labels: list[str]
 
     async def annotate(self, request: AnnotationRequest) -> AnnotationResult: ...
 
