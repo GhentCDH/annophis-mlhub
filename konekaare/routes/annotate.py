@@ -5,8 +5,15 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 
 from konekaare import annotators
+from konekaare.annotators.base import Annotator
 from konekaare.annotators.remote import RemoteAnnotator
-from konekaare.models import AnnotationLayer, AnnotationRequest, AnnotationResponse, WsInputUnit, WsOutputUnit
+from konekaare.models import (
+    AnnotationLayer,
+    AnnotationRequest,
+    AnnotationResponse,
+    WsInputUnit,
+    WsOutputUnit,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -29,7 +36,7 @@ async def annotate(request: AnnotationRequest) -> AnnotationResponse:
     """Annotate a piece of text, with all or a subset of annotators"""
     all_annotators = annotators.all()
 
-    targets = []
+    targets: list[Annotator] = []
     for name in request.annotators:
         ann = all_annotators.get(name)
         if ann is None:
@@ -79,16 +86,20 @@ async def ws_annotate_hub(
     else:
         targets = list(all_anns.values())
 
-    remote_targets = [a for a in targets if isinstance(a, RemoteAnnotator)]
-    local_targets = [a for a in targets if not isinstance(a, RemoteAnnotator)]
+    remote_targets: list[RemoteAnnotator] = [
+        a for a in targets if isinstance(a, RemoteAnnotator)
+    ]
+    local_targets: list[Annotator] = [
+        a for a in targets if not isinstance(a, RemoteAnnotator)
+    ]
 
     await websocket.accept()
     result_queue: asyncio.Queue[WsOutputUnit | None] = asyncio.Queue()
     local_tasks: set[asyncio.Task] = set()
 
-    async def annotate_local(ann, unit: WsInputUnit) -> None:
+    async def annotate_local(ann: Annotator, unit: WsInputUnit) -> None:
         try:
-            req = AnnotationRequest(text=unit.text, annotators=[])
+            req = AnnotationRequest(text=unit.text, annotators=[ann.name])
             result = await ann.annotate(req)
             await result_queue.put(
                 WsOutputUnit(
@@ -127,8 +138,10 @@ async def ws_annotate_hub(
             while True:
                 data = await websocket.receive_json()
                 unit = WsInputUnit(**data)
+                # await remote annotators' answers
                 for session in sessions:
                     await session.send(unit)
+                # run local annotators
                 for ann in local_targets:
                     task = asyncio.create_task(annotate_local(ann, unit))
                     local_tasks.add(task)
