@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
+from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
 
 # Default max concurrent inference threads across all local annotators.
 _DEFAULT_MAX_CONCURRENCY = 1

@@ -4,10 +4,10 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 
-from konekaare import annotators
-from konekaare.annotators.base import Annotator
-from konekaare.annotators.remote import RemoteAnnotator
-from konekaare.models import (
+from annohub import annotators
+from annohub.annotators.base import Annotator
+from annohub.annotators.remote import RemoteAnnotator
+from annohub.models import (
     AnnotationLayer,
     AnnotationRequest,
     AnnotationResponse,

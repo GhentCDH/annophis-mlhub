@@ -20,8 +20,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from konekaare.models import AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
-from konekaare.worker.base import ModelWorker
+from annohub.models import AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
+from annohub.worker.base import ModelWorker
 
 
 class _WorkRequest(BaseModel):
@@ -79,7 +79,7 @@ def create_worker_app(
         await processor
 
     app = FastAPI(
-        title=f"konekaare-worker: {worker.name}",
+        title=f"annohub-worker: {worker.name}",
         version="0.1.0",
         lifespan=lifespan,
     )

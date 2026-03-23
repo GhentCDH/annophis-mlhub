@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from konekaare import annotators
-from konekaare.app import create_app
-from konekaare.config import settings
+from annohub import annotators
+from annohub.app import create_app
+from annohub.config import settings
 
 
 @pytest.fixture(autouse=True)
@@ -20,8 +20,8 @@ def _empty_registry():
 
 @pytest.fixture
 def _use_real_config():
-    """Restore real config path so annotators load from konekaare.toml."""
-    from konekaare.config import CONFIG_PATH
+    """Restore real config path so annotators load from annohub.toml."""
+    from annohub.config import CONFIG_PATH
 
     settings.config_path = CONFIG_PATH
 

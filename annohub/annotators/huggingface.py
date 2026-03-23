@@ -1,14 +1,14 @@
 """RemoteAnnotator that translates HuggingFace Inference API responses.
 
 The HF Inference API has its own schema — this annotator demonstrates
-translating a foreign API into konekaare's internal model.
+translating a foreign API into annohub's internal model.
 
-Usage in konekaare.toml:
+Usage in annohub.toml:
 
     [[annotator]]
     name = "hf-ner"
     annotation_type = "ner"
-    class_path = "konekaare.annotators.huggingface.HuggingFaceAnnotator"
+    class_path = "annohub.annotators.huggingface.HuggingFaceAnnotator"
     base_url = "https://router.huggingface.co"
     model = "dslim/bert-base-NER"
     token = "hf_..."
@@ -24,8 +24,8 @@ Or with class-level defaults:
 
 import logging
 
-from konekaare.annotators.remote import RemoteAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
+from annohub.annotators.remote import RemoteAnnotator
+from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class HuggingFaceAnnotator(RemoteAnnotator):
 
         [{"entity_group": "PER", "word": "Alice", "start": 0, "end": 5, "score": 0.99}]
 
-    into konekaare Spans::
+    into annohub Spans::
 
         [{"label": "PER", "text": "Alice", "start": 0, "end": 5}]
     """
@@ -70,7 +70,7 @@ class HuggingFaceAnnotator(RemoteAnnotator):
         resp.raise_for_status()
         entities = resp.json()
 
-        # Translate HF schema → konekaare Span
+        # Translate HF schema → annohub Span
         spans = [
             Span(
                 start=e["start"],

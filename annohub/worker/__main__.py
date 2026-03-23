@@ -1,8 +1,8 @@
-"""CLI entry point for the konekaare worker harness.
+"""CLI entry point for the annohub worker harness.
 
 Usage::
 
-    python -m konekaare.worker serve my_module:MyModel \\
+    python -m annohub.worker serve my_module:MyModel \\
         --name my-ner --annotation-type ner --port 8001
 """
 
@@ -12,7 +12,7 @@ import sys
 
 import uvicorn
 
-from konekaare.worker.app import create_worker_app
+from annohub.worker.app import create_worker_app
 
 
 def _import_worker(path: str):
@@ -25,8 +25,8 @@ def _import_worker(path: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="konekaare-worker",
-        description="Run a konekaare-compatible model service.",
+        prog="annohub-worker",
+        description="Run a annohub-compatible model service.",
     )
     sub = parser.add_subparsers(dest="command")
 

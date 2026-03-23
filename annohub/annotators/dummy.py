@@ -1,7 +1,7 @@
 import re
 
-from konekaare.annotators.local import LocalAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
+from annohub.annotators.local import LocalAnnotator
+from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
 
 
 class DummyNerAnnotator(LocalAnnotator):

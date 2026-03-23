@@ -1,6 +1,6 @@
 from typing import Protocol, runtime_checkable
 
-from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
+from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
 
 
 # The Annotator Protocol: duck typing; any class that has these properties is an 'Annotator',

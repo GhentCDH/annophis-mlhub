@@ -1,4 +1,4 @@
-# Konekaare
+# Annohub
 
 Text annotation web API. Submit text, get annotations back (POS, NER, or anything).
 
@@ -14,7 +14,7 @@ Text annotation web API. Submit text, get annotations back (POS, NER, or anythin
 ## Project structure
 
 ```
-konekaare/
+annohub/
 ├── app.py                     # app factory + lifespan
 ├── config.py                  # pydantic-settings + annotator loading from TOML
 ├── docs.py                    # Scalar docs route + custom CSS
@@ -29,7 +29,7 @@ konekaare/
 │   ├── __init__.py            # public API: ModelWorker, Span, create_worker_app
 │   ├── base.py                # ModelWorker ABC (implement load + predict)
 │   ├── app.py                 # FastAPI app factory with internal queue
-│   └── __main__.py            # CLI: python -m konekaare.worker serve
+│   └── __main__.py            # CLI: python -m annohub.worker serve
 └── routes/
     ├── annotate.py            # POST /annotate
     └── health.py              # GET /health, GET /annotators
@@ -42,7 +42,7 @@ konekaare/
 1. Subclass `LocalAnnotator`, implement `annotate_sync()`
 2. Constructor must call `super().__init__(name, annotation_type)`
 3. Optional `max_concurrency` kwarg controls parallel thread access (default: 1)
-4. Add `[[annotator]]` entry in `konekaare.toml`
+4. Add `[[annotator]]` entry in `annohub.toml`
 
 ### Remote annotator (generic)
 
@@ -52,18 +52,18 @@ No subclassing needed — use `GenericRemoteAnnotator` directly in TOML:
 [[annotator]]
 name = "remote-ner"
 annotation_type = "ner"
-class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:8001"
 ```
 
-The remote service must speak the konekaare protocol: `POST /annotate` accepting `{"text": "..."}` and returning `{"annotator": "...", "annotation_type": "...", "spans": [...]}`.
+The remote service must speak the annohub protocol: `POST /annotate` accepting `{"text": "..."}` and returning `{"annotator": "...", "annotation_type": "...", "spans": [...]}`.
 
 ### Worker harness (model service)
 
-Wrap any ML model into a konekaare-compatible service:
+Wrap any ML model into a annohub-compatible service:
 
 ```python
-from konekaare.worker import ModelWorker, Span
+from annohub.worker import ModelWorker, Span
 
 class MyModel(ModelWorker):
     def load(self):
@@ -76,7 +76,7 @@ class MyModel(ModelWorker):
 Run with:
 
 ```
-python -m konekaare.worker serve my_module:MyModel \
+python -m annohub.worker serve my_module:MyModel \
     --name my-ner --annotation-type ner --port 8001
 ```
 
@@ -88,7 +88,7 @@ The harness provides `/annotate`, `/health`, `/info` endpoints and an internal q
 python main.py
 ```
 
-Server settings via env vars: `KONEKAARE_HOST`, `KONEKAARE_PORT`, `KONEKAARE_DEBUG`.
+Server settings via env vars: `ANNOHUB_HOST`, `ANNOHUB_PORT`, `ANNOHUB_DEBUG`.
 
 ## Testing
 
@@ -96,14 +96,14 @@ Server settings via env vars: `KONEKAARE_HOST`, `KONEKAARE_PORT`, `KONEKAARE_DEB
 uv run pytest tests/ -v
 ```
 
-Tests use a nonexistent config path by default so no annotators load. Use the `_use_real_config` fixture to test with `konekaare.toml`.
+Tests use a nonexistent config path by default so no annotators load. Use the `_use_real_config` fixture to test with `annohub.toml`.
 
 ## Key design decisions
 
 - All annotators are async at the interface. Local ones wrap blocking work with `asyncio.to_thread`.
 - `LocalAnnotator` uses an `asyncio.Semaphore` to bound concurrent inference (default: 1, serialized).
 - Multiple annotators run concurrently via `asyncio.gather`.
-- Annotator registry is a plain dict, populated at startup from `konekaare.toml`.
+- Annotator registry is a plain dict, populated at startup from `annohub.toml`.
 - `class_path` in config enables dynamic import — new annotators need no core code changes.
 - `GenericRemoteAnnotator` eliminates subclassing for standard-protocol remote services.
 - Worker harness uses `asyncio.Queue` → single worker thread pattern for safe GPU inference.

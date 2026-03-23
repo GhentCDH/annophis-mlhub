@@ -5,22 +5,22 @@
 [[annotator]]
 name = "dummy-ner"
 annotation_type = "ner"
-class_path = "konekaare.annotators.dummy.DummyNerAnnotator"
+class_path = "annohub.annotators.dummy.DummyNerAnnotator"
 
 [[annotator]]
 name = "slow-ner"
 annotation_type = "ner"
-class_path = "konekaare.annotators.slow_dummy.SlowDummyAnnotator"
+class_path = "annohub.annotators.slow_dummy.SlowDummyAnnotator"
 delay = 1.0
 
 # Example: generic remote annotator (no custom subclass needed).
-# The remote service must speak the konekaare protocol (POST /annotate).
-# Start a model service with: python -m konekaare.worker serve my_module:MyModel
+# The remote service must speak the annohub protocol (POST /annotate).
+# Start a model service with: python -m annohub.worker serve my_module:MyModel
 #
 # [[annotator]]
 # name = "remote-ner"
 # annotation_type = "ner"
-# class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+# class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
 # base_url = "http://localhost:8001"
 # endpoint = "/annotate"     # optional, defaults to /annotate
 # timeout = 30.0             # optional, defaults to 30s
@@ -28,7 +28,7 @@ delay = 1.0
 [[annotator]]
 name = "colinmodel"
 annotation_type = "pos"
-class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
 description = "DBBert model for Part of Speech. Excpects greek"
 labels = ["POS", "DBBert", "remote", "greek"]
@@ -36,7 +36,7 @@ labels = ["POS", "DBBert", "remote", "greek"]
 [[annotator]]
 name = "hf-ner"
 annotation_type = "ner"
-class_path = "konekaare.annotators.huggingface.HuggingFaceAnnotator"
+class_path = "annohub.annotators.huggingface.HuggingFaceAnnotator"
 model = "dslim/bert-base-NER"
 token = "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"
 base_url = "https://router.huggingface.co/hf-inference"

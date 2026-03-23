@@ -2,14 +2,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from konekaare.docs import add_scalar_docs
-from konekaare.routes import annotate, health
+from annohub.docs import add_scalar_docs
+from annohub.routes import annotate, health
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from konekaare import annotators
-    from konekaare.config import load_annotators
+    from annohub import annotators
+    from annohub.config import load_annotators
 
     load_annotators()
     yield
@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Konekaare",
+        title="Annohub",
         description="Text annotation API",
         version="0.1.0",
         docs_url="/docs",

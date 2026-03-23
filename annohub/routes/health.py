@@ -3,9 +3,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from konekaare import annotators
-from konekaare.annotators.base import Annotator
-from konekaare.models import AnnotatorInfo, Health
+from annohub import annotators
+from annohub.annotators.base import Annotator
+from annohub.models import AnnotatorInfo, Health
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

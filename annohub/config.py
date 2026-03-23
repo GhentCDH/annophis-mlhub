@@ -5,7 +5,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
-CONFIG_PATH = Path("konekaare.toml")
+CONFIG_PATH = Path("annohub.toml")
 
 
 class AnnotatorConfig(BaseModel):
@@ -17,7 +17,7 @@ class AnnotatorConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "KONEKAARE_"}
+    model_config = {"env_prefix": "ANNOHUB_"}
 
     host: str = "0.0.0.0"
     port: int = 8000
@@ -37,7 +37,7 @@ def _load_config_file() -> dict:
 
 
 def load_annotators() -> None:
-    from konekaare import annotators
+    from annohub import annotators
 
     config = _load_config_file()
 

@@ -3,8 +3,8 @@ import time
 
 import pytest
 
-from konekaare.annotators.local import LocalAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult
+from annohub.annotators.local import LocalAnnotator
+from annohub.models import AnnotationRequest, AnnotationResult
 
 
 class SlowAnnotator(LocalAnnotator):

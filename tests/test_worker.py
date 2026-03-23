@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from konekaare.models import Span
-from konekaare.worker import ModelWorker, create_worker_app
+from annohub.models import Span
+from annohub.worker import ModelWorker, create_worker_app
 
 
 class UpperCaseWorker(ModelWorker):

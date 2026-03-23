@@ -1,8 +1,8 @@
 import pytest
 
-from konekaare import annotators
-from konekaare.annotators.local import LocalAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult, Span
+from annohub import annotators
+from annohub.annotators.local import LocalAnnotator
+from annohub.models import AnnotationRequest, AnnotationResult, Span
 
 
 class DummyAnnotator(LocalAnnotator):
@@ -86,7 +86,7 @@ def test_ws_annotate_unknown(client):
 
 
 def test_dummy_ner_from_config(_use_real_config, client):
-    """Test the dummy-ner annotator loaded from konekaare.toml."""
+    """Test the dummy-ner annotator loaded from annohub.toml."""
     resp = client.get("/annotators")
     data = resp.json()
     names = [a["name"] for a in data]

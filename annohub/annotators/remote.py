@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import httpx
 import websockets
 
-from konekaare.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
+from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
 
 
 class _WsSession:
@@ -71,7 +71,7 @@ class RemoteAnnotator(ABC):
 class GenericRemoteAnnotator(RemoteAnnotator):
     """Remote annotator that POSTs to {base_url}/annotate.
 
-    Expects the remote service to speak the standard konekaare protocol:
+    Expects the remote service to speak the standard annohub protocol:
 
         POST /annotate  {"text": "..."}
         -> {"annotator": "...", "annotation_type": "...", "spans": [...]}
@@ -81,7 +81,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         [[annotator]]
         name = "remote-ner"
         annotation_type = "ner"
-        class_path = "konekaare.annotators.remote.GenericRemoteAnnotator"
+        class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
         base_url = "http://localhost:8001"
     """
 

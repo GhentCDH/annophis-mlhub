@@ -1,8 +1,8 @@
 import re
 import time
 
-from konekaare.annotators.local import LocalAnnotator
-from konekaare.models import AnnotationRequest, AnnotationResult, Span
+from annohub.annotators.local import LocalAnnotator
+from annohub.models import AnnotationRequest, AnnotationResult, Span
 
 
 class SlowDummyAnnotator(LocalAnnotator):

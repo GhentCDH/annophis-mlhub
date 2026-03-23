@@ -4,8 +4,8 @@ import httpx
 import pytest
 import websockets
 
-from konekaare.annotators.remote import GenericRemoteAnnotator
-from konekaare.models import AnnotationRequest, WsInputUnit
+from annohub.annotators.remote import GenericRemoteAnnotator
+from annohub.models import AnnotationRequest, WsInputUnit
 
 
 @pytest.fixture

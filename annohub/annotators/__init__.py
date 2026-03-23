@@ -1,4 +1,4 @@
-from konekaare.annotators.base import Annotator
+from annohub.annotators.base import Annotator
 
 _registry: dict[str, Annotator] = {}
 

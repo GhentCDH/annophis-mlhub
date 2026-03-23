@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 
-from konekaare.models import Span
+from annohub.models import Span
 
 
 class ModelWorker(ABC):
-    """Base class for wrapping an ML model into a konekaare service.
+    """Base class for wrapping an ML model into a annohub service.
 
     Subclasses implement two methods:
 

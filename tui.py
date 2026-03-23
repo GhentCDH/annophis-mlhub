@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tui.py — interactive streaming annotation TUI for konekaare.
+tui.py — interactive streaming annotation TUI for annohub.
 
 Connects to a running hub (default http://localhost:8000), lets the user pick
 an annotator and supply some text (inline or from a file), splits the text into
@@ -132,7 +132,7 @@ async def stream(ws_url: str, units: list[str]) -> None:
 
 
 def main() -> None:
-    console.rule("[bold blue]konekaare[/bold blue]")
+    console.rule("[bold blue]annohub[/bold blue]")
     console.print()
 
     # ── fetch annotators ──────────────────────────────────────────────────────
