@@ -18,18 +18,23 @@ class LocalAnnotator(ABC):
     name: str = "unnamed"
     annotation_type: str = "unknown"
     description: str = ""
-    labels: list[str] = []
+    labels: list[str]
 
     def __init__(
         self,
         name: str | None = None,
         annotation_type: str | None = None,
+        description: str | None = None,
+        labels: list[str] | None = None,
         max_concurrency: int = _DEFAULT_MAX_CONCURRENCY,
     ):
         if name is not None:
             self.name = name
         if annotation_type is not None:
             self.annotation_type = annotation_type
+        if description is not None:
+            self.description = description
+        self.labels = labels if labels is not None else []
         self._semaphore = asyncio.Semaphore(max_concurrency)
 
     @abstractmethod

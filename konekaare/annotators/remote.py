@@ -27,7 +27,7 @@ class RemoteAnnotator(ABC):
     name: str = "unnamed"
     annotation_type: str = "unknown"
     description: str = ""
-    labels: list[str] = []
+    labels: list[str]
     base_url: str = ""
 
     def __init__(
@@ -46,8 +46,7 @@ class RemoteAnnotator(ABC):
             self.base_url = base_url
         if description is not None:
             self.description = description
-        if labels is not None:
-            self.labels = labels
+        self.labels = labels if labels is not None else []
         self._client: httpx.AsyncClient | None = None
 
     async def get_client(self) -> httpx.AsyncClient:
