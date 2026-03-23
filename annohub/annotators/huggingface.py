@@ -22,12 +22,52 @@ Or with class-level defaults:
         token = "hf_..."
 """
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
+from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span, WsInputUnit, WsOutputUnit
 
 logger = logging.getLogger(__name__)
+
+
+class _HfSession:
+    """Streaming session that bridges the WsSession interface over HTTP to the HF API."""
+
+    def __init__(self, annotator: "HuggingFaceAnnotator"):
+        self._annotator = annotator
+        self._queue: asyncio.Queue[WsOutputUnit | None] = asyncio.Queue()
+        self._tasks: set[asyncio.Task] = set()
+
+    async def send(self, unit: WsInputUnit) -> None:
+        task = asyncio.create_task(self._process(unit))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _process(self, unit: WsInputUnit) -> None:
+        request = AnnotationRequest(text=unit.text, annotators=[self._annotator.name])
+        result = await self._annotator.annotate(request)
+        await self._queue.put(
+            WsOutputUnit(
+                id=unit.id,
+                annotator=result.annotator,
+                annotation_type=result.annotation_type,
+                spans=result.spans,
+            )
+        )
+
+    async def __aiter__(self):
+        while True:
+            item = await self._queue.get()
+            if item is None:
+                break
+            yield item
+
+    async def _close(self):
+        if self._tasks:
+            await asyncio.gather(*self._tasks)
+        await self._queue.put(None)
 
 
 class HuggingFaceAnnotator(RemoteAnnotator):
@@ -86,6 +126,14 @@ class HuggingFaceAnnotator(RemoteAnnotator):
             annotation_type=self.annotation_type,
             spans=spans,
         )
+
+    @asynccontextmanager
+    async def stream_session(self):
+        session = _HfSession(self)
+        try:
+            yield session
+        finally:
+            await session._close()
 
     async def info(self) -> AnnotatorInfo:
         return AnnotatorInfo(
