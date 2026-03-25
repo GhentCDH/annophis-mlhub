@@ -43,8 +43,14 @@ class _QueueItem:
 def create_worker_app(
     worker: ModelWorker,
     max_queue_size: int = 64,
+    max_workers: int = 1,
 ) -> FastAPI:
-    """Create a FastAPI app that serves a ModelWorker with an internal queue."""
+    """Create a FastAPI app that serves a ModelWorker with an internal queue.
+
+    ``max_workers`` controls how many worker threads run inference concurrently.
+    The default of 1 is safe for GPU models; set higher for thread-safe CPU models
+    that benefit from parallelism.
+    """
 
     queue: asyncio.Queue[_QueueItem | None] = asyncio.Queue(maxsize=max_queue_size)
 
@@ -71,12 +77,13 @@ def create_worker_app(
     async def lifespan(app: FastAPI):
         # Load model
         await asyncio.to_thread(worker.load)
-        # Start queue processor
-        processor = asyncio.create_task(_process_queue())
+        # Start N queue processors
+        processors = [asyncio.create_task(_process_queue()) for _ in range(max_workers)]
         yield
-        # Shutdown: send sentinel and wait
-        await queue.put(None)
-        await processor
+        # Shutdown: send one sentinel per worker, then wait for all to exit
+        for _ in range(max_workers):
+            await queue.put(None)
+        await asyncio.gather(*processors)
 
     app = FastAPI(
         title=f"annohub-worker: {worker.name}",
