@@ -11,12 +11,14 @@ graph TD
     Client -->|POST /annotate\nWS /annotate| Hub[Annohub Hub]
 
     Hub -->|asyncio.gather| Local[Local Annotators\nthread pool]
-    Hub -->|HTTP / WS| Remote[Remote Annotators\nany external API]
+    Hub -->|HTTP / WS| Remote[Remote Annotators]
+    Remote -->|annohub protocol| Queue[asyncio.Queue]
 
     subgraph Worker Harness
-        Remote -->|annohub protocol| Queue[asyncio.Queue]
-        Queue -->|single worker thread| Model[ML Model\ne.g. GPU]
+        Queue -->|worker threads| Model[ML Model\nGPU/CPU]
     end
+
+    Remote -->|any protocol\n through annohub wrapper| External[External Annotator]
 ```
 
 **Hub** (`annohub/`) — FastAPI app. Loads annotators from `annohub.toml` at startup and routes requests to them.
@@ -34,6 +36,7 @@ graph TD
 **`POST /annotate`**
 
 Request:
+
 ```json
 {
   "text": "Athens is the capital of Greece.",
@@ -42,6 +45,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "text": "Athens is the capital of Greece.",
@@ -106,7 +110,7 @@ All extra fields are forwarded as keyword arguments to the annotator constructor
 Server settings via environment variables:
 
 | Variable        | Default     |
-|-----------------|-------------|
+| --------------- | ----------- |
 | `ANNOHUB_HOST`  | `127.0.0.1` |
 | `ANNOHUB_PORT`  | `8000`      |
 | `ANNOHUB_DEBUG` | `false`     |
@@ -137,6 +141,7 @@ class MyNerAnnotator(LocalAnnotator):
 ```
 
 Add to `annohub.toml`:
+
 ```toml
 [[annotator]]
 name = "my-ner"
