@@ -1,10 +1,8 @@
 from typing import Protocol, runtime_checkable
 
-from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
+from annohub.models import AnnotationResult, AnnotatorInfo, Contract, Document
 
 
-# The Annotator Protocol: duck typing; any class that has these properties is an 'Annotator',
-#                         even without explicitely extending this class
 @runtime_checkable
 class Annotator(Protocol):
     """Protocol that all annotators must satisfy."""
@@ -13,7 +11,8 @@ class Annotator(Protocol):
     annotation_type: str
     description: str
     labels: list[str]
+    contract: Contract
 
-    async def annotate(self, request: AnnotationRequest) -> AnnotationResult: ...
+    async def annotate(self, doc: Document) -> AnnotationResult: ...
 
     async def info(self) -> AnnotatorInfo: ...

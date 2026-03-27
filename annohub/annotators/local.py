@@ -1,9 +1,8 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo
+from annohub.models import AnnotationResult, AnnotatorInfo, Contract, Document
 
-# Default max concurrent inference threads across all local annotators.
 _DEFAULT_MAX_CONCURRENCY = 1
 
 
@@ -19,6 +18,7 @@ class LocalAnnotator(ABC):
     annotation_type: str = "unknown"
     description: str = ""
     labels: list[str]
+    contract: Contract
 
     def __init__(
         self,
@@ -27,6 +27,8 @@ class LocalAnnotator(ABC):
         description: str | None = None,
         labels: list[str] | None = None,
         max_concurrency: int = _DEFAULT_MAX_CONCURRENCY,
+        requires: dict[str, bool] | None = None,
+        produces: list[str] | None = None,
     ):
         if name is not None:
             self.name = name
@@ -36,9 +38,13 @@ class LocalAnnotator(ABC):
             self.description = description
         self.labels = labels if labels is not None else []
         self._semaphore = asyncio.Semaphore(max_concurrency)
+        self.contract = Contract(
+            requires=requires if requires is not None else {"text": True},
+            produces=produces if produces is not None else [self.annotation_type],
+        )
 
     @abstractmethod
-    def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
+    def annotate_sync(self, doc: Document) -> AnnotationResult:
         """Synchronous, blocking annotation. Runs in a thread."""
         ...
 
@@ -50,11 +56,12 @@ class LocalAnnotator(ABC):
             kind="local",
             description=self.description,
             labels=self.labels,
+            contract=self.contract,
         )
 
-    async def annotate(self, request: AnnotationRequest) -> AnnotationResult:
+    async def annotate(self, doc: Document) -> AnnotationResult:
         async with self._semaphore:
-            return await asyncio.to_thread(self.annotate_sync, request)
+            return await asyncio.to_thread(self.annotate_sync, doc)
 
     async def info(self) -> AnnotatorInfo:
         return self.info_sync()
