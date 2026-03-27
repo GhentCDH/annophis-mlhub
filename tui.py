@@ -1,29 +1,25 @@
 #!/usr/bin/env python3
 """
-tui.py — interactive streaming annotation TUI for annohub.
+tui.py — interactive annotation TUI for annohub.
 
-Connects to a running hub (default http://localhost:8000), lets the user pick
-an annotator and supply some text (inline or from a file), splits the text into
-sentences or paragraphs, streams all units to the hub via WebSocket, and shows
-results live as they arrive.
+Connects to a running hub (default http://localhost:8000), lets the user
+build a pipeline of annotators, validates contracts at each step, runs the
+pipeline step-by-step showing intermediate results, and displays the final
+document.
 """
 from __future__ import annotations
 
-import asyncio
-import json
 import sys
 from pathlib import Path
-from urllib.parse import quote
 
 import httpx
-import websockets
 from rich import box
 from rich.console import Console
-from rich.live import Live
 from rich.markup import escape
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.tree import Tree
 
 BASE_URL = "http://localhost:8000"
 console = Console()
@@ -44,88 +40,151 @@ def annotator_table(annotators: list[dict]) -> Table:
     t.add_column("#", style="dim", width=3)
     t.add_column("Name", style="bold cyan")
     t.add_column("Type", style="magenta", width=12)
+    t.add_column("Requires", style="yellow")
+    t.add_column("Produces", style="green")
     t.add_column("Description")
     for i, a in enumerate(annotators, 1):
-        t.add_row(str(i), a["name"], a["annotation_type"], a.get("description", ""))
+        contract = a.get("contract", {})
+        requires = ", ".join(contract.get("requires", {}).keys()) or "-"
+        produces = ", ".join(contract.get("produces", [])) or "-"
+        t.add_row(
+            str(i),
+            a["name"],
+            a["annotation_type"],
+            requires,
+            produces,
+            a.get("description", ""),
+        )
     return t
 
 
-def split_sentences(text: str) -> list[str]:
-    """Split on '.', stripping whitespace and empty results."""
-    return [s.strip() for s in text.replace("\n", " ").split(".") if s.strip()]
+def validate_pipeline(
+    annotators: list[dict], initial_keys: set[str]
+) -> list[tuple[str, list[str]]]:
+    """Walk the pipeline, checking contracts. Returns list of (name, missing_keys).
+
+    Empty missing_keys means the step is valid.
+    """
+    available_keys = set(initial_keys)
+    issues: list[tuple[str, list[str]]] = []
+    for a in annotators:
+        contract = a.get("contract", {})
+        requires = set(contract.get("requires", {}).keys())
+        produces = contract.get("produces", [])
+        missing = sorted(requires - available_keys)
+        issues.append((a["name"], missing))
+        available_keys.update(produces)
+    return issues
 
 
-def split_paragraphs(text: str) -> list[str]:
-    """Split on newlines, stripping whitespace and empty results."""
-    return [p.strip() for p in text.split("\n") if p.strip()]
+def pipeline_panel(pipeline: list[dict], initial_keys: set[str]) -> Panel:
+    """Show the pipeline with contract validation status."""
+    issues = validate_pipeline(pipeline, initial_keys)
+    t = Table(box=box.SIMPLE, expand=True, pad_edge=False)
+    t.add_column("Step", width=4, style="dim")
+    t.add_column("Annotator", style="bold cyan")
+    t.add_column("Requires", style="yellow")
+    t.add_column("Produces", style="green")
+    t.add_column("Status", width=14)
 
-
-def result_panel(units: list[str], statuses: list[str], span_cells: list[str], done: int) -> Panel:
-    t = Table(box=box.SIMPLE, expand=True, show_header=True, pad_edge=False)
-    t.add_column("#", width=4, style="dim")
-    t.add_column("Text", ratio=4)
-    t.add_column("Spans", ratio=4)
-    t.add_column("", width=9)  # status
-
-    for i, (unit, status, spans) in enumerate(zip(units, statuses, span_cells)):
-        snippet = escape(unit[:52] + "…" if len(unit) > 52 else unit)
-        if status == "done":
-            status_cell = "[green]✓ done[/green]"
-        elif status == "error":
-            status_cell = "[red]✗ error[/red]"
+    for i, (ann, (_, missing)) in enumerate(zip(pipeline, issues), 1):
+        contract = ann.get("contract", {})
+        requires = ", ".join(contract.get("requires", {}).keys()) or "-"
+        produces = ", ".join(contract.get("produces", [])) or "-"
+        if missing:
+            status = f"[red]missing: {', '.join(missing)}[/red]"
         else:
-            status_cell = "[dim]○[/dim]"
-        t.add_row(str(i + 1), snippet, spans, status_cell)
+            status = "[green]ok[/green]"
+        t.add_row(str(i), ann["name"], requires, produces, status)
 
-    return Panel(
-        t,
-        title=f"[bold cyan]Streaming[/bold cyan] · [dim]{done}/{len(units)} done[/dim]",
-        border_style="blue",
-    )
+    all_ok = all(not missing for _, missing in issues)
+    title_status = "[green]valid[/green]" if all_ok else "[red]invalid[/red]"
+    return Panel(t, title=f"[bold]Pipeline[/bold] · {title_status}", border_style="blue")
 
 
-# ── async streaming ───────────────────────────────────────────────────────────
+def span_table(spans: list[dict]) -> Table:
+    t = Table(box=box.SIMPLE, pad_edge=False, show_edge=False)
+    t.add_column("Text", style="bold")
+    t.add_column("Label", style="magenta")
+    t.add_column("Start", style="dim", justify="right")
+    t.add_column("End", style="dim", justify="right")
+    for s in spans:
+        t.add_row(escape(s["text"]), s["label"], str(s["start"]), str(s["end"]))
+    return t
 
 
-async def stream(ws_url: str, units: list[str]) -> None:
-    n = len(units)
-    statuses = ["pending"] * n
-    span_cells = ["[dim]…[/dim]"] * n
-    done = 0
+def document_tree(doc: dict) -> Tree:
+    """Build a rich Tree showing all document keys and annotation layers."""
+    tree = Tree("[bold]Document[/bold]")
+    tree.add(f"[cyan]text[/cyan] = [dim]{escape(doc['text'][:80])}{'...' if len(doc['text']) > 80 else ''}[/dim]")
 
-    console.print(f"  [dim]Connecting to {ws_url}[/dim]")
+    meta = doc.get("meta", {})
+    if meta:
+        meta_branch = tree.add("[cyan]meta[/cyan]")
+        for k, v in meta.items():
+            meta_branch.add(f"{escape(str(k))} = {escape(str(v))}")
 
-    async with websockets.connect(ws_url) as ws:
-        for i, text in enumerate(units):
-            await ws.send(json.dumps({"id": str(i), "text": text}))
+    skip = {"text", "meta"}
+    for key, value in doc.items():
+        if key in skip:
+            continue
+        if isinstance(value, list) and value and isinstance(value[0], dict):
+            branch = tree.add(f"[green]{escape(key)}[/green] ({len(value)} spans)")
+            for s in value[:10]:
+                branch.add(
+                    f"[bold]{escape(s.get('text', ''))}[/bold] "
+                    f"[magenta]{s.get('label', '')}[/magenta] "
+                    f"[dim]{s.get('start', '')}:{s.get('end', '')}[/dim]"
+                )
+            if len(value) > 10:
+                branch.add(f"[dim]... and {len(value) - 10} more[/dim]")
+        else:
+            tree.add(f"[green]{escape(key)}[/green] = {escape(str(value))}")
 
-        with Live(
-            result_panel(units, statuses, span_cells, done),
-            console=console,
-            refresh_per_second=10,
-            vertical_overflow="crop",
-        ) as live:
-            while done < n:
-                raw = await ws.recv()
-                msg = json.loads(raw)
-                idx = int(msg["id"])
+    return tree
 
-                if "error" in msg:
-                    statuses[idx] = "error"
-                    span_cells[idx] = f"[red]{escape(msg['error'])}[/red]"
-                else:
-                    spans = msg.get("spans", [])
-                    if spans:
-                        span_cells[idx] = "  ".join(
-                            f"[bold]{escape(s['text'])}[/bold][dim]:{s['label']}[/dim]"
-                            for s in spans
-                        )
-                    else:
-                        span_cells[idx] = "[dim](none)[/dim]"
-                    statuses[idx] = "done"
 
-                done += 1
-                live.update(result_panel(units, statuses, span_cells, done))
+def run_pipeline(
+    base_url: str, text: str, meta: dict, pipeline: list[dict]
+) -> None:
+    """Run the pipeline step by step, showing intermediate results."""
+    doc = {"text": text, "meta": meta}
+
+    console.print()
+    console.rule("[bold blue]Pipeline execution[/bold blue]")
+
+    with httpx.Client(timeout=60) as client:
+        for i, ann in enumerate(pipeline, 1):
+            name = ann["name"]
+            console.print()
+            console.print(f"  [bold]Step {i}/{len(pipeline)}[/bold]: [cyan]{name}[/cyan]")
+
+            resp = client.post(
+                f"{base_url}/annotate",
+                json={"document": doc, "annotators": [name]},
+            )
+
+            if resp.status_code != 200:
+                detail = resp.json().get("detail", resp.text)
+                console.print(f"  [red]Error ({resp.status_code}): {escape(str(detail))}[/red]")
+                return
+
+            doc = resp.json()
+
+            # show what this step added
+            ann_type = ann["annotation_type"]
+            new_spans = doc.get(ann_type, [])
+            if new_spans:
+                console.print(f"  [green]+{ann_type}[/green]: {len(new_spans)} span(s)")
+                console.print(span_table(new_spans))
+            else:
+                console.print(f"  [green]+{ann_type}[/green]: [dim](no spans)[/dim]")
+
+    # final result
+    console.print()
+    console.rule("[bold green]Final document[/bold green]")
+    console.print()
+    console.print(document_tree(doc))
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -150,8 +209,68 @@ def main() -> None:
     console.print(annotator_table(available))
     console.print()
 
-    choices = [a["name"] for a in available]
-    annotator = Prompt.ask("Annotator", choices=choices, default=choices[0])
+    by_name = {a["name"]: a for a in available}
+    choices = list(by_name.keys())
+
+    # ── build pipeline ────────────────────────────────────────────────────────
+    console.print(
+        "[dim]Build a pipeline by adding annotators in order.\n"
+        "Type a name (or number) to add, 'done' to finish, 'rm' to remove last.[/dim]"
+    )
+    console.print()
+
+    pipeline: list[dict] = []
+    while True:
+        prompt_text = f"Add annotator ({len(pipeline)} in pipeline)"
+        raw = Prompt.ask(prompt_text, default="done").strip()
+
+        if raw.lower() == "done":
+            if not pipeline:
+                console.print("[yellow]Pipeline is empty — add at least one annotator.[/yellow]")
+                continue
+            break
+
+        if raw.lower() == "rm":
+            if pipeline:
+                removed = pipeline.pop()
+                console.print(f"  [dim]Removed {removed['name']}[/dim]")
+            else:
+                console.print("  [dim]Pipeline is already empty.[/dim]")
+            continue
+
+        # accept number or name
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(available):
+                raw = available[idx]["name"]
+            else:
+                console.print(f"  [red]Invalid number. Choose 1-{len(available)}.[/red]")
+                continue
+
+        if raw not in by_name:
+            console.print(f"  [red]Unknown annotator: {raw}[/red]")
+            continue
+
+        pipeline.append(by_name[raw])
+        console.print(f"  [green]+[/green] {raw}")
+
+    # ── validate pipeline contracts ───────────────────────────────────────────
+    console.print()
+    initial_keys = {"text", "meta"}
+    console.print(pipeline_panel(pipeline, initial_keys))
+
+    issues = validate_pipeline(pipeline, initial_keys)
+    has_issues = any(missing for _, missing in issues)
+
+    if has_issues:
+        proceed = Prompt.ask(
+            "[yellow]Pipeline has contract issues. Proceed anyway?[/yellow]",
+            choices=["y", "n"],
+            default="n",
+        )
+        if proceed == "n":
+            console.print("[dim]Aborted.[/dim]")
+            sys.exit(0)
 
     # ── text input ────────────────────────────────────────────────────────────
     console.print()
@@ -163,34 +282,24 @@ def main() -> None:
     else:
         text = source
 
-    # ── split mode ────────────────────────────────────────────────────────────
-    console.print()
-    mode = Prompt.ask(
-        "Split by [dim](s[/dim]=sentences [dim]· p[/dim]=paragraphs[dim])[/dim]",
-        choices=["s", "p"],
-        default="s",
-        show_choices=False,
-        show_default=False,
-    )
-
-    if mode == "s":
-        units = split_sentences(text)
-        mode_label = "sentences"
-    else:
-        units = split_paragraphs(text)
-        mode_label = "paragraphs"
-
-    if not units:
-        console.print(f"[yellow]No {mode_label} found in the input.[/yellow]")
+    if not text.strip():
+        console.print("[yellow]No text provided.[/yellow]")
         sys.exit(1)
 
-    console.print(f"  [dim]{len(units)} {mode_label}[/dim]")
-    console.print()
+    # ── optional meta ─────────────────────────────────────────────────────────
+    meta_raw = Prompt.ask("Meta (JSON, or empty)", default="").strip()
+    meta: dict = {}
+    if meta_raw:
+        try:
+            import json
 
-    # ── stream ────────────────────────────────────────────────────────────────
-    ws_url = f"ws://localhost:8000/annotate?annotators={quote(annotator)}"
+            meta = json.loads(meta_raw)
+        except Exception:
+            console.print("[yellow]Invalid JSON, ignoring meta.[/yellow]")
+
+    # ── run ───────────────────────────────────────────────────────────────────
     try:
-        asyncio.run(stream(ws_url, units))
+        run_pipeline(BASE_URL, text, meta, pipeline)
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted.[/yellow]")
     except Exception as e:
