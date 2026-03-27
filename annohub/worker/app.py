@@ -9,7 +9,7 @@ Architecture::
     HTTP POST /annotate
          |
          v
-    asyncio.Queue  ──>  worker task (asyncio.to_thread)  ──>  response Future
+    asyncio.Queue  -->  worker task (asyncio.to_thread)  -->  response Future
 """
 
 from __future__ import annotations
@@ -18,14 +18,9 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
 
-from annohub.models import AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
+from annohub.models import AnnotationResult, AnnotatorInfo, Document, WsInputUnit, WsOutputUnit
 from annohub.worker.base import ModelWorker
-
-
-class _WorkRequest(BaseModel):
-    text: str
 
 
 class _WorkerInfo(AnnotatorInfo):
@@ -75,12 +70,9 @@ def create_worker_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # Load model
         await asyncio.to_thread(worker.load)
-        # Start N queue processors
         processors = [asyncio.create_task(_process_queue()) for _ in range(max_workers)]
         yield
-        # Shutdown: send one sentinel per worker, then wait for all to exit
         for _ in range(max_workers):
             await queue.put(None)
         await asyncio.gather(*processors)
@@ -99,6 +91,7 @@ def create_worker_app(
             description=worker.description,
             labels=worker.labels,
             kind="remote",
+            contract=worker.contract,
         )
 
     @app.get("/info", response_model=_WorkerInfo)
@@ -109,13 +102,14 @@ def create_worker_app(
             description=worker.description,
             labels=worker.labels,
             kind="remote",
+            contract=worker.contract,
         )
 
     @app.post("/annotate", response_model=AnnotationResult)
-    async def annotate(req: _WorkRequest):
+    async def annotate(doc: Document):
         loop = asyncio.get_running_loop()
         future: asyncio.Future[AnnotationResult] = loop.create_future()
-        await queue.put(_QueueItem(text=req.text, future=future))
+        await queue.put(_QueueItem(text=doc.text, future=future))
         return await future
 
     @app.websocket("/annotate")
@@ -133,7 +127,7 @@ def create_worker_app(
                     future.add_done_callback(
                         lambda f, uid=unit.id: result_queue.put_nowait((uid, f))
                     )
-                    await queue.put(_QueueItem(text=unit.text, future=future))
+                    await queue.put(_QueueItem(text=unit.document.text, future=future))
             except WebSocketDisconnect:
                 pass
             finally:

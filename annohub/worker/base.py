@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from annohub.models import Span
+from annohub.models import Contract, Span
 
 
 class ModelWorker(ABC):
@@ -25,6 +25,13 @@ class ModelWorker(ABC):
             self.name = name
         if annotation_type is not None:
             self.annotation_type = annotation_type
+
+    @property
+    def contract(self) -> Contract:
+        return Contract(
+            requires={"text": True},
+            produces=[self.annotation_type],
+        )
 
     @abstractmethod
     def load(self) -> None:
