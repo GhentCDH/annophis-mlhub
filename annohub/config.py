@@ -12,6 +12,8 @@ class AnnotatorConfig(BaseModel):
     name: str
     annotation_type: str
     class_path: str
+    requires: dict[str, bool] = {}
+    produces: list[str] = []
     # arbitrary extra fields passed to the annotator constructor
     model_config = {"extra": "allow"}
 
@@ -47,6 +49,12 @@ def load_annotators() -> None:
         mod = importlib.import_module(mod_path)
         cls = getattr(mod, cls_name)
 
-        # pass all fields except class_path as kwargs to the constructor
-        kwargs = cfg.model_dump(exclude={"class_path"})
+        # pass all fields except class_path as kwargs to the constructor;
+        # omit empty requires/produces so annotator defaults kick in
+        exclude = {"class_path"}
+        if not cfg.requires:
+            exclude.add("requires")
+        if not cfg.produces:
+            exclude.add("produces")
+        kwargs = cfg.model_dump(exclude=exclude)
         annotators.register(cls(**kwargs))
