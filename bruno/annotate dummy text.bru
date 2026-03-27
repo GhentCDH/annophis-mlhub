@@ -12,7 +12,15 @@ post {
 
 body:json {
   {
-    "text": "My name is Neil Peeters and i was born on 25th April 2002. Now, i work at GhentCDH, which is in Ghent."
+    "document": {
+      "text": "My name is Neil Peeters and i was born on 25th April 2002. Now, i work at GhentCDH, which is in Ghent.",
+      "meta": {"lang": "en"}
+    },
+    "annotators": [
+      "sentence-split",
+      "sentence-count",
+      "dummy-ner"
+    ]
   }
 }
 
