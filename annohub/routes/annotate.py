@@ -3,20 +3,43 @@ import contextlib
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 from annohub import annotators
 from annohub.annotators.base import Annotator
 from annohub.annotators.remote import RemoteAnnotator
 from annohub.models import (
-    AnnotationLayer,
-    AnnotationRequest,
-    AnnotationResponse,
+    AnnotationResult,
+    Contract,
+    Document,
     WsInputUnit,
     WsOutputUnit,
 )
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+class AnnotateRequest(BaseModel):
+    document: Document
+    annotators: list[str]
+
+
+def validate_contract(doc: Document, contract: Contract) -> list[str]:
+    """Check that all required keys exist in the document. Returns list of missing keys."""
+    missing = []
+    dump = doc.model_dump()
+    for key in contract.requires:
+        if key not in dump:
+            missing.append(key)
+    return missing
+
+
+def merge_result(doc: Document, result: AnnotationResult) -> Document:
+    """Create a new Document with the result's spans added under the annotation_type key."""
+    data = doc.model_dump()
+    data[result.annotation_type] = [s.model_dump() for s in result.spans]
+    return Document(**data)
 
 
 async def _is_available(a) -> bool:
@@ -31,33 +54,29 @@ async def _is_available(a) -> bool:
         return False
 
 
-@router.post("/annotate", response_model=AnnotationResponse)
-async def annotate(request: AnnotationRequest) -> AnnotationResponse:
-    """Annotate a piece of text, with all or a subset of annotators"""
+@router.post("/annotate", response_model=Document)
+async def annotate(request: AnnotateRequest) -> Document:
+    """Annotate a document through a sequential pipeline of annotators."""
     all_annotators = annotators.all()
+    doc = request.document
 
-    targets: list[Annotator] = []
     for name in request.annotators:
         ann = all_annotators.get(name)
         if ann is None:
             raise HTTPException(404, f"Unknown annotator: {name}")
         if not await _is_available(ann):
             raise HTTPException(503, f"Annotator {name!r} is not available")
-        targets.append(ann)
 
-    results = await asyncio.gather(*(a.annotate(request) for a in targets))
-
-    return AnnotationResponse(
-        text=request.text,
-        annotations=[
-            AnnotationLayer(
-                annotator=r.annotator,
-                annotation_type=r.annotation_type,
-                spans=r.spans,
+        missing = validate_contract(doc, ann.contract)
+        if missing:
+            raise HTTPException(
+                422, f"Annotator {name!r} requires missing keys: {missing}"
             )
-            for r in results
-        ],
-    )
+
+        result = await ann.annotate(doc)
+        doc = merge_result(doc, result)
+
+    return doc
 
 
 @router.websocket("/annotate")
@@ -99,8 +118,7 @@ async def ws_annotate_hub(
 
     async def annotate_local(ann: Annotator, unit: WsInputUnit) -> None:
         try:
-            req = AnnotationRequest(text=unit.text, annotators=[ann.name])
-            result = await ann.annotate(req)
+            result = await ann.annotate(unit.document)
             await result_queue.put(
                 WsOutputUnit(
                     id=unit.id,
@@ -138,10 +156,8 @@ async def ws_annotate_hub(
             while True:
                 data = await websocket.receive_json()
                 unit = WsInputUnit(**data)
-                # await remote annotators' answers
                 for session in sessions:
                     await session.send(unit)
-                # run local annotators
                 for ann in local_targets:
                     task = asyncio.create_task(annotate_local(ann, unit))
                     local_tasks.add(task)

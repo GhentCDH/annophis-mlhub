@@ -22,6 +22,7 @@ async def _annotator_info(a: Annotator) -> AnnotatorInfo:
             kind="local" if hasattr(a, "annotate_sync") else "remote",
             description=getattr(a, "description", ""),
             labels=getattr(a, "labels", []),
+            contract=getattr(a, "contract", {}),
             available=False,
         )
 
