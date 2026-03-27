@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -12,9 +14,19 @@ class Span(BaseModel):
     text: str
 
 
-class AnnotationRequest(BaseModel):
+class Contract(BaseModel):
+    """Declares an annotator's input requirements and output guarantees."""
+
+    requires: dict[str, bool] = {}
+    produces: list[str] = []
+
+
+class Document(BaseModel):
+    """Unified content container. Annotators extend it by adding keys."""
+
+    model_config = {"extra": "allow"}
+    meta: dict[str, Any] = {}
     text: str
-    annotators: list[str]
 
 
 class AnnotationResult(BaseModel):
@@ -25,22 +37,9 @@ class AnnotationResult(BaseModel):
     spans: list[Span]
 
 
-class AnnotationLayer(BaseModel):
-    annotator: str
-    annotation_type: str
-    spans: list[Span]
-
-
-class AnnotationResponse(BaseModel):
-    """Full response, potentially from multiple annotators."""
-
-    text: str
-    annotations: list[AnnotationLayer]
-
-
 class WsInputUnit(BaseModel):
     id: str
-    text: str
+    document: Document
 
 
 class WsOutputUnit(BaseModel):
@@ -56,4 +55,5 @@ class AnnotatorInfo(BaseModel):
     kind: str  # "local" or "remote"
     description: str = ""
     labels: list[str] = []
+    contract: Contract = Contract()
     available: bool = True
