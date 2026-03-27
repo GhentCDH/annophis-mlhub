@@ -28,6 +28,9 @@ class Document(BaseModel):
     meta: dict[str, Any] = {}
     text: str
 
+    def __init__(self, **data: Any) -> None:
+        super().__init__(**data)
+
 
 class AnnotationResult(BaseModel):
     """Result from a single annotator."""

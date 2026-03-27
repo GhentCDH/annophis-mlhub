@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from annohub import annotators
 from annohub.annotators.base import Annotator
-from annohub.models import AnnotatorInfo, Health
+from annohub.models import AnnotatorInfo, Contract, Health
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ async def _annotator_info(a: Annotator) -> AnnotatorInfo:
             kind="local" if hasattr(a, "annotate_sync") else "remote",
             description=getattr(a, "description", ""),
             labels=getattr(a, "labels", []),
-            contract=getattr(a, "contract", {}),
+            contract=getattr(a, "contract", Contract()),
             available=False,
         )
 
@@ -36,7 +36,9 @@ async def health():
 @router.get("/annotators", response_model=list[AnnotatorInfo])
 async def list_annotators():
     """List all available annotators"""
-    infos = await asyncio.gather(*(_annotator_info(a) for a in annotators.all().values()))
+    infos = await asyncio.gather(
+        *(_annotator_info(a) for a in annotators.all().values())
+    )
     return [i for i in infos if i.available]
 
 
