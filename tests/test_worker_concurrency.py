@@ -1,7 +1,7 @@
 """Tests that verify actual concurrent processing in the worker harness.
 
-With max_workers=1 (default), N requests are serialized: total ≈ N * delay.
-With max_workers=N, requests run in parallel:       total ≈ 1 * delay.
+With max_workers=1 (default), N requests are serialized: total ~ N * delay.
+With max_workers=N, requests run in parallel:       total ~ 1 * delay.
 """
 
 import concurrent.futures
@@ -42,7 +42,7 @@ def _post(client: TestClient, text: str):
 
 
 def test_single_worker_serializes_requests():
-    """max_workers=1: N concurrent requests take ≥ N * delay (serialized)."""
+    """max_workers=1: N concurrent requests take >= N * delay (serialized)."""
     app = create_worker_app(SlowWorker(), max_workers=1)
 
     with TestClient(app) as client:
@@ -57,12 +57,12 @@ def test_single_worker_serializes_requests():
 
     # Allow 20 % margin; still well above the parallel floor
     assert elapsed >= DELAY * N * 0.8, (
-        f"Expected serialized time ≥ {DELAY * N * 0.8:.2f}s, got {elapsed:.2f}s"
+        f"Expected serialized time >= {DELAY * N * 0.8:.2f}s, got {elapsed:.2f}s"
     )
 
 
 def test_multi_worker_processes_concurrently():
-    """max_workers=N: N concurrent requests finish in ≈ 1 * delay (parallel)."""
+    """max_workers=N: N concurrent requests finish in ~ 1 * delay (parallel)."""
     app = create_worker_app(SlowWorker(), max_workers=N)
 
     with TestClient(app) as client:

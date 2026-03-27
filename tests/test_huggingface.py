@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from annohub.annotators.huggingface import HuggingFaceAnnotator
-from annohub.models import AnnotationRequest
+from annohub.models import Document
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ async def test_translates_hf_response(annotator, monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
-    result = await annotator.annotate(AnnotationRequest(text="Alice went to Paris", annotators=[]))
+    result = await annotator.annotate(Document(text="Alice went to Paris"))
 
     assert result.annotator == "hf-ner"
     assert result.annotation_type == "ner"
@@ -104,7 +104,7 @@ async def test_no_auth_header_without_token(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
 
-    result = await ann.annotate(AnnotationRequest(text="hello", annotators=[]))
+    result = await ann.annotate(Document(text="hello"))
     assert result.spans == []
 
     await ann.close()

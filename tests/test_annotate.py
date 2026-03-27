@@ -1,19 +1,17 @@
-import pytest
-
 from annohub import annotators
 from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult, Span
+from annohub.models import AnnotationResult, Document, Span
 
 
 class DummyAnnotator(LocalAnnotator):
     name = "dummy"
     annotation_type = "test"
 
-    def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
+    def annotate_sync(self, doc: Document) -> AnnotationResult:
         return AnnotationResult(
             annotator=self.name,
             annotation_type=self.annotation_type,
-            spans=[Span(start=0, end=5, label="TEST", text=request.text[:5])],
+            spans=[Span(start=0, end=5, label="TEST", text=doc.text[:5])],
         )
 
 
@@ -37,29 +35,36 @@ def test_list_annotators_with_dummy(client):
     assert len(data) == 1
     assert data[0]["name"] == "dummy"
     assert data[0]["kind"] == "local"
+    assert "contract" in data[0]
 
 
 def test_annotate_no_annotators(client):
-    resp = client.post("/annotate", json={"text": "hello world", "annotators": []})
+    resp = client.post(
+        "/annotate",
+        json={"document": {"text": "hello world"}, "annotators": []},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["text"] == "hello world"
-    assert data["annotations"] == []
 
 
 def test_annotate_with_dummy(client):
     annotators.register(DummyAnnotator())
-    resp = client.post("/annotate", json={"text": "hello world", "annotators": ["dummy"]})
+    resp = client.post(
+        "/annotate",
+        json={"document": {"text": "hello world"}, "annotators": ["dummy"]},
+    )
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data["annotations"]) == 1
-    assert data["annotations"][0]["annotator"] == "dummy"
-    assert data["annotations"][0]["spans"][0]["label"] == "TEST"
+    assert data["text"] == "hello world"
+    assert "test" in data
+    assert data["test"][0]["label"] == "TEST"
 
 
 def test_annotate_unknown_annotator(client):
     resp = client.post(
-        "/annotate", json={"text": "hello", "annotators": ["nonexistent"]}
+        "/annotate",
+        json={"document": {"text": "hello"}, "annotators": ["nonexistent"]},
     )
     assert resp.status_code == 404
 
@@ -67,8 +72,8 @@ def test_annotate_unknown_annotator(client):
 def test_ws_annotate_local(client):
     annotators.register(DummyAnnotator())
     with client.websocket_connect("/annotate?annotators=dummy") as ws:
-        ws.send_json({"id": "a", "text": "hello world"})
-        ws.send_json({"id": "b", "text": "foo bar"})
+        ws.send_json({"id": "a", "document": {"text": "hello world"}})
+        ws.send_json({"id": "b", "document": {"text": "foo bar"}})
         results = [ws.receive_json(), ws.receive_json()]
     ids = {r["id"] for r in results}
     assert ids == {"a", "b"}
@@ -93,11 +98,15 @@ def test_dummy_ner_from_config(_use_real_config, client):
     assert "dummy-ner" in names
 
     resp = client.post(
-        "/annotate", json={"text": "Alice went to Paris", "annotators": ["dummy-ner"]}
+        "/annotate",
+        json={
+            "document": {"text": "Alice went to Paris"},
+            "annotators": ["dummy-ner"],
+        },
     )
     assert resp.status_code == 200
     data = resp.json()
-    ner = next(a for a in data["annotations"] if a["annotator"] == "dummy-ner")
-    labels = [s["text"] for s in ner["spans"]]
+    assert "ner" in data
+    labels = [s["text"] for s in data["ner"]]
     assert "Alice" in labels
     assert "Paris" in labels

@@ -44,12 +44,16 @@ def test_worker_health(client):
     assert data["name"] == "upper"
     assert data["annotation_type"] == "test"
     assert data["status"] == "ok"
+    assert "contract" in data
 
 
 def test_worker_info(client):
     resp = client.get("/info")
     assert resp.status_code == 200
-    assert resp.json()["name"] == "upper"
+    data = resp.json()
+    assert data["name"] == "upper"
+    assert data["contract"]["requires"] == {"text": True}
+    assert data["contract"]["produces"] == ["test"]
 
 
 def test_worker_annotate(client):
@@ -71,7 +75,7 @@ def test_worker_annotate_no_matches(client):
 
 def test_worker_ws_single(client):
     with client.websocket_connect("/annotate") as ws:
-        ws.send_json({"id": "1", "text": "hello WORLD"})
+        ws.send_json({"id": "1", "document": {"text": "hello WORLD"}})
         result = ws.receive_json()
     assert result["id"] == "1"
     assert result["annotator"] == "upper"
@@ -81,9 +85,9 @@ def test_worker_ws_single(client):
 
 def test_worker_ws_multiple(client):
     with client.websocket_connect("/annotate") as ws:
-        ws.send_json({"id": "1", "text": "HELLO there"})
-        ws.send_json({"id": "2", "text": "lowercase only"})
-        ws.send_json({"id": "3", "text": "NASA and ESA"})
+        ws.send_json({"id": "1", "document": {"text": "HELLO there"}})
+        ws.send_json({"id": "2", "document": {"text": "lowercase only"}})
+        ws.send_json({"id": "3", "document": {"text": "NASA and ESA"}})
         results = [ws.receive_json(), ws.receive_json(), ws.receive_json()]
     ids = {r["id"] for r in results}
     assert ids == {"1", "2", "3"}

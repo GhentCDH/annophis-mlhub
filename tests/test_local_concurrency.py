@@ -4,7 +4,7 @@ import time
 import pytest
 
 from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult
+from annohub.models import AnnotationResult, Document
 
 
 class SlowAnnotator(LocalAnnotator):
@@ -17,7 +17,7 @@ class SlowAnnotator(LocalAnnotator):
         super().__init__(max_concurrency=max_concurrency)
         self.delay = delay
 
-    def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
+    def annotate_sync(self, doc: Document) -> AnnotationResult:
         time.sleep(self.delay)
         return AnnotationResult(
             annotator=self.name,
@@ -30,10 +30,10 @@ class SlowAnnotator(LocalAnnotator):
 async def test_semaphore_serializes_access():
     """With max_concurrency=1, requests should be serialized."""
     ann = SlowAnnotator(delay=0.05, max_concurrency=1)
-    req = AnnotationRequest(text="test", annotators=[])
+    doc = Document(text="test")
 
     start = time.monotonic()
-    await asyncio.gather(*(ann.annotate(req) for _ in range(3)))
+    await asyncio.gather(*(ann.annotate(doc) for _ in range(3)))
     elapsed = time.monotonic() - start
 
     # 3 serial calls of 0.05s each = ~0.15s minimum
@@ -44,10 +44,10 @@ async def test_semaphore_serializes_access():
 async def test_higher_concurrency_is_faster():
     """With max_concurrency=3, all requests can run in parallel."""
     ann = SlowAnnotator(delay=0.05, max_concurrency=3)
-    req = AnnotationRequest(text="test", annotators=[])
+    doc = Document(text="test")
 
     start = time.monotonic()
-    await asyncio.gather(*(ann.annotate(req) for _ in range(3)))
+    await asyncio.gather(*(ann.annotate(doc) for _ in range(3)))
     elapsed = time.monotonic() - start
 
     # 3 parallel calls of 0.05s = ~0.05s, definitely under 0.12s
