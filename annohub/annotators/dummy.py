@@ -1,7 +1,7 @@
 import re
 
 from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span
+from annohub.models import AnnotationResult, AnnotatorInfo, Document, Span
 
 
 class DummyNerAnnotator(LocalAnnotator):
@@ -13,9 +13,9 @@ class DummyNerAnnotator(LocalAnnotator):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
+    def annotate_sync(self, doc: Document) -> AnnotationResult:
         spans = []
-        for match in re.finditer(r"\b[A-Z][a-z]+\b", request.text):
+        for match in re.finditer(r"\b[A-Z][a-z]+\b", doc.text):
             spans.append(
                 Span(
                     start=match.start(),
@@ -37,4 +37,5 @@ class DummyNerAnnotator(LocalAnnotator):
             kind="local",
             description=self.description,
             labels=self.labels,
+            contract=self.contract,
         )

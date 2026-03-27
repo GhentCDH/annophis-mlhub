@@ -2,7 +2,7 @@ import re
 import time
 
 from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult, Span
+from annohub.models import AnnotationResult, Document, Span
 
 
 class SlowDummyAnnotator(LocalAnnotator):
@@ -16,14 +16,14 @@ class SlowDummyAnnotator(LocalAnnotator):
     labels = ["ENTITY"]
 
     def __init__(self, delay: float = 1.0, **kwargs):
-        super().__init__(**{k: v for k, v in kwargs.items() if k in ("name", "annotation_type", "max_concurrency")})
+        super().__init__(**{k: v for k, v in kwargs.items() if k in ("name", "annotation_type", "max_concurrency", "requires", "produces")})
         self.delay = delay
 
-    def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
+    def annotate_sync(self, doc: Document) -> AnnotationResult:
         time.sleep(self.delay)
         spans = [
             Span(start=m.start(), end=m.end(), label="ENTITY", text=m.group())
-            for m in re.finditer(r"\b[A-Z][a-z]+\b", request.text)
+            for m in re.finditer(r"\b[A-Z][a-z]+\b", doc.text)
         ]
         return AnnotationResult(
             annotator=self.name,

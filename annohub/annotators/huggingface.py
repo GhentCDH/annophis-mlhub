@@ -27,7 +27,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, Span, WsInputUnit, WsOutputUnit
+from annohub.models import AnnotationResult, AnnotatorInfo, Document, Span, WsInputUnit, WsOutputUnit
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,7 @@ class _HfSession:
         task.add_done_callback(self._tasks.discard)
 
     async def _process(self, unit: WsInputUnit) -> None:
-        request = AnnotationRequest(text=unit.text, annotators=[self._annotator.name])
-        result = await self._annotator.annotate(request)
+        result = await self._annotator.annotate(unit.document)
         await self._queue.put(
             WsOutputUnit(
                 id=unit.id,
@@ -95,7 +94,7 @@ class HuggingFaceAnnotator(RemoteAnnotator):
         if token is not None:
             self.token = token
 
-    async def annotate(self, request: AnnotationRequest) -> AnnotationResult:
+    async def annotate(self, doc: Document) -> AnnotationResult:
         client = await self.get_client()
         headers = {}
         if self.token:
@@ -103,20 +102,19 @@ class HuggingFaceAnnotator(RemoteAnnotator):
 
         resp = await client.post(
             f"/models/{self.model}",
-            json={"inputs": request.text},
+            json={"inputs": doc.text},
             headers=headers,
             timeout=30.0,
         )
         resp.raise_for_status()
         entities = resp.json()
 
-        # Translate HF schema → annohub Span
         spans = [
             Span(
                 start=e["start"],
                 end=e["end"],
                 label=e["entity_group"],
-                text=request.text[e["start"] : e["end"]],
+                text=doc.text[e["start"] : e["end"]],
             )
             for e in entities
         ]
@@ -142,4 +140,5 @@ class HuggingFaceAnnotator(RemoteAnnotator):
             kind="remote",
             description=self.description,
             labels=self.labels,
+            contract=self.contract,
         )

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import httpx
 import websockets
 
-from annohub.models import AnnotationRequest, AnnotationResult, AnnotatorInfo, WsInputUnit, WsOutputUnit
+from annohub.models import AnnotationResult, AnnotatorInfo, Contract, Document, WsInputUnit, WsOutputUnit
 
 
 class _WsSession:
@@ -29,6 +29,7 @@ class RemoteAnnotator(ABC):
     description: str = ""
     labels: list[str]
     base_url: str = ""
+    contract: Contract
 
     def __init__(
         self,
@@ -37,6 +38,8 @@ class RemoteAnnotator(ABC):
         base_url: str | None = None,
         description: str | None = None,
         labels: list[str] | None = None,
+        requires: dict[str, bool] | None = None,
+        produces: list[str] | None = None,
     ):
         if name is not None:
             self.name = name
@@ -48,6 +51,10 @@ class RemoteAnnotator(ABC):
             self.description = description
         self.labels = labels if labels is not None else []
         self._client: httpx.AsyncClient | None = None
+        self.contract = Contract(
+            requires=requires if requires is not None else {"text": True},
+            produces=produces if produces is not None else [self.annotation_type],
+        )
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -55,7 +62,7 @@ class RemoteAnnotator(ABC):
         return self._client
 
     @abstractmethod
-    async def annotate(self, request: AnnotationRequest) -> AnnotationResult: ...
+    async def annotate(self, doc: Document) -> AnnotationResult: ...
 
     @abstractmethod
     async def info(self) -> AnnotatorInfo: ...
@@ -73,7 +80,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
 
     Expects the remote service to speak the standard annohub protocol:
 
-        POST /annotate  {"text": "..."}
+        POST /annotate  {document JSON}
         -> {"annotator": "...", "annotation_type": "...", "spans": [...]}
 
     Configured entirely from TOML — no subclassing needed:
@@ -90,11 +97,11 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         self.endpoint = endpoint
         self.timeout = timeout
 
-    async def annotate(self, request: AnnotationRequest) -> AnnotationResult:
+    async def annotate(self, doc: Document) -> AnnotationResult:
         client = await self.get_client()
         resp = await client.post(
             self.endpoint,
-            json={"text": request.text},
+            json=doc.model_dump(),
             timeout=self.timeout,
         )
         resp.raise_for_status()
@@ -116,6 +123,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             description=data["description"],
             labels=data["labels"],
             kind=data["kind"],
+            contract=data.get("contract", {}),
         )
 
     @asynccontextmanager
