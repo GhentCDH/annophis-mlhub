@@ -7,6 +7,7 @@ build a pipeline of annotators, validates contracts at each step, runs the
 pipeline step-by-step showing intermediate results, and displays the final
 document.
 """
+
 from __future__ import annotations
 
 import sys
@@ -58,6 +59,18 @@ def annotator_table(annotators: list[dict]) -> Table:
     return t
 
 
+def _tui_key_available(path: str, available: set[str]) -> bool:
+    """Check whether a (possibly dot-separated) key path is available.
+
+    Matches the full path first, then falls back to the root segment so that
+    paths like ``meta.lang`` are satisfied when ``meta`` is in the initial keys.
+    """
+    if path in available:
+        return True
+    root = path.split(".")[0]
+    return root in available
+
+
 def validate_pipeline(
     annotators: list[dict], initial_keys: set[str]
 ) -> list[tuple[str, list[str]]]:
@@ -69,9 +82,11 @@ def validate_pipeline(
     issues: list[tuple[str, list[str]]] = []
     for a in annotators:
         contract = a.get("contract", {})
-        requires = set(contract.get("requires", {}).keys())
+        requires = list(contract.get("requires", {}).keys())
         produces = contract.get("produces", [])
-        missing = sorted(requires - available_keys)
+        missing = sorted(
+            r for r in requires if not _tui_key_available(r, available_keys)
+        )
         issues.append((a["name"], missing))
         available_keys.update(produces)
     return issues
@@ -99,7 +114,9 @@ def pipeline_panel(pipeline: list[dict], initial_keys: set[str]) -> Panel:
 
     all_ok = all(not missing for _, missing in issues)
     title_status = "[green]valid[/green]" if all_ok else "[red]invalid[/red]"
-    return Panel(t, title=f"[bold]Pipeline[/bold] · {title_status}", border_style="blue")
+    return Panel(
+        t, title=f"[bold]Pipeline[/bold] · {title_status}", border_style="blue"
+    )
 
 
 def span_table(spans: list[dict]) -> Table:
@@ -116,7 +133,9 @@ def span_table(spans: list[dict]) -> Table:
 def document_tree(doc: dict) -> Tree:
     """Build a rich Tree showing all document keys and annotation layers."""
     tree = Tree("[bold]Document[/bold]")
-    tree.add(f"[cyan]text[/cyan] = [dim]{escape(doc['text'][:80])}{'...' if len(doc['text']) > 80 else ''}[/dim]")
+    tree.add(
+        f"[cyan]text[/cyan] = [dim]{escape(doc['text'][:80])}{'...' if len(doc['text']) > 80 else ''}[/dim]"
+    )
 
     meta = doc.get("meta", {})
     if meta:
@@ -144,9 +163,7 @@ def document_tree(doc: dict) -> Tree:
     return tree
 
 
-def run_pipeline(
-    base_url: str, text: str, meta: dict, pipeline: list[dict]
-) -> None:
+def run_pipeline(base_url: str, text: str, meta: dict, pipeline: list[dict]) -> None:
     """Run the pipeline step by step, showing intermediate results."""
     doc = {"text": text, "meta": meta}
 
@@ -157,7 +174,9 @@ def run_pipeline(
         for i, ann in enumerate(pipeline, 1):
             name = ann["name"]
             console.print()
-            console.print(f"  [bold]Step {i}/{len(pipeline)}[/bold]: [cyan]{name}[/cyan]")
+            console.print(
+                f"  [bold]Step {i}/{len(pipeline)}[/bold]: [cyan]{name}[/cyan]"
+            )
 
             resp = client.post(
                 f"{base_url}/annotate",
@@ -166,7 +185,9 @@ def run_pipeline(
 
             if resp.status_code != 200:
                 detail = resp.json().get("detail", resp.text)
-                console.print(f"  [red]Error ({resp.status_code}): {escape(str(detail))}[/red]")
+                console.print(
+                    f"  [red]Error ({resp.status_code}): {escape(str(detail))}[/red]"
+                )
                 return
 
             doc = resp.json()
@@ -210,7 +231,6 @@ def main() -> None:
     console.print()
 
     by_name = {a["name"]: a for a in available}
-    choices = list(by_name.keys())
 
     # ── build pipeline ────────────────────────────────────────────────────────
     console.print(
@@ -226,7 +246,9 @@ def main() -> None:
 
         if raw.lower() == "done":
             if not pipeline:
-                console.print("[yellow]Pipeline is empty — add at least one annotator.[/yellow]")
+                console.print(
+                    "[yellow]Pipeline is empty — add at least one annotator.[/yellow]"
+                )
                 continue
             break
 
@@ -244,7 +266,9 @@ def main() -> None:
             if 0 <= idx < len(available):
                 raw = available[idx]["name"]
             else:
-                console.print(f"  [red]Invalid number. Choose 1-{len(available)}.[/red]")
+                console.print(
+                    f"  [red]Invalid number. Choose 1-{len(available)}.[/red]"
+                )
                 continue
 
         if raw not in by_name:

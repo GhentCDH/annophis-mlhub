@@ -1,10 +1,9 @@
 """Tests for contract validation logic."""
 
-import pytest
-
 from annohub import annotators
 from annohub.annotators.local import LocalAnnotator
 from annohub.models import AnnotationResult, Contract, Document, Span
+from annohub.routes.annotate import validate_contract
 
 
 class NerAnnotator(LocalAnnotator):
@@ -102,3 +101,55 @@ def test_contract_produces_keys_appear_in_output(client):
     data = resp.json()
     for key in ann.contract.produces:
         assert key in data
+
+
+# --- dot-path and value constraint tests ---
+
+
+class TestDotPathValidation:
+    """Tests for dot-separated path resolution and value constraints."""
+
+    def test_dot_path_exists(self):
+        doc = Document(text="hello", meta={"lang": "en"})
+        contract = Contract(requires={"meta.lang": True})
+        assert validate_contract(doc, contract) == []
+
+    def test_dot_path_missing(self):
+        doc = Document(text="hello", meta={})
+        contract = Contract(requires={"meta.lang": True})
+        violations = validate_contract(doc, contract)
+        assert "meta.lang" in violations
+
+    def test_dot_path_value_match(self):
+        doc = Document(text="hello", meta={"lang": "en"})
+        contract = Contract(requires={"meta.lang": "en"})
+        assert validate_contract(doc, contract) == []
+
+    def test_dot_path_value_mismatch(self):
+        doc = Document(text="hello", meta={"lang": "fr"})
+        contract = Contract(requires={"meta.lang": "en"})
+        violations = validate_contract(doc, contract)
+        assert len(violations) == 1
+        assert "meta.lang" in violations[0]
+
+    def test_dot_path_value_in_list(self):
+        doc = Document(text="hello", meta={"lang": "de"})
+        contract = Contract(requires={"meta.lang": ["en", "de"]})
+        assert validate_contract(doc, contract) == []
+
+    def test_dot_path_value_not_in_list(self):
+        doc = Document(text="hello", meta={"lang": "ja"})
+        contract = Contract(requires={"meta.lang": ["en", "de"]})
+        violations = validate_contract(doc, contract)
+        assert len(violations) == 1
+        assert "meta.lang" in violations[0]
+
+    def test_deep_dot_path(self):
+        doc = Document(text="hello", meta={"source": {"type": "web"}})
+        contract = Contract(requires={"meta.source.type": "web"})
+        assert validate_contract(doc, contract) == []
+
+    def test_flat_key_still_works(self):
+        doc = Document(text="hello")
+        contract = Contract(requires={"text": True})
+        assert validate_contract(doc, contract) == []

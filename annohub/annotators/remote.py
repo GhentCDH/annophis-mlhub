@@ -4,7 +4,14 @@ from contextlib import asynccontextmanager
 import httpx
 import websockets
 
-from annohub.models import AnnotationResult, AnnotatorInfo, Contract, Document, WsInputUnit, WsOutputUnit
+from annohub.models import (
+    AnnotationResult,
+    AnnotatorInfo,
+    Contract,
+    Document,
+    WsInputUnit,
+    WsOutputUnit,
+)
 
 
 class _WsSession:
@@ -52,7 +59,7 @@ class RemoteAnnotator(ABC):
         self.labels = labels if labels is not None else []
         self._client: httpx.AsyncClient | None = None
         self.contract = Contract(
-            requires=requires if requires is not None else {"text": True},
+            requires=requires if requires is not None else {"text": True},  # ty:ignore[invalid-argument-type]
             produces=produces if produces is not None else [self.annotation_type],
         )
 
@@ -68,7 +75,9 @@ class RemoteAnnotator(ABC):
     async def info(self) -> AnnotatorInfo: ...
 
     def stream_session(self):
-        raise NotImplementedError(f"{type(self).__name__} does not support stream_session()")
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support stream_session()"
+        )
 
     async def close(self) -> None:
         if self._client and not self._client.is_closed:

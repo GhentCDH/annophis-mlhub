@@ -12,7 +12,7 @@ class AnnotatorConfig(BaseModel):
     name: str
     annotation_type: str
     class_path: str
-    requires: dict[str, bool] = {}
+    requires: dict[str, bool | str | list[str]] = {}
     produces: list[str] = []
     # arbitrary extra fields passed to the annotator constructor
     model_config = {"extra": "allow"}

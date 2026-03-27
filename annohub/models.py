@@ -15,9 +15,15 @@ class Span(BaseModel):
 
 
 class Contract(BaseModel):
-    """Declares an annotator's input requirements and output guarantees."""
+    """Declares an annotator's input requirements and output guarantees.
 
-    requires: dict[str, bool] = {}
+    ``requires`` maps dot-separated key paths to constraints:
+    - ``True``  → key must exist (any value)
+    - ``"en"``  → key must exist and equal ``"en"``
+    - ``["en", "de"]`` → key must exist and be one of the listed values
+    """
+
+    requires: dict[str, bool | str | list[str]] = {}
     produces: list[str] = []
 
 

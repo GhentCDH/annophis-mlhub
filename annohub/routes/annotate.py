@@ -25,14 +25,45 @@ class AnnotateRequest(BaseModel):
     annotators: list[str]
 
 
+def _resolve_path(data: dict, path: str):
+    """Resolve a dot-separated path against a nested dict.
+
+    Returns ``(True, value)`` if the path exists, ``(False, None)`` otherwise.
+    """
+    current = data
+    for part in path.split("."):
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            return False, None
+    return True, current
+
+
 def validate_contract(doc: Document, contract: Contract) -> list[str]:
-    """Check that all required keys exist in the document. Returns list of missing keys."""
-    missing = []
+    """Check that all required keys exist (and optionally match) in the document.
+
+    Supports dot-separated paths (e.g. ``meta.lang``) and value constraints:
+    - ``True``  → key must exist
+    - ``"en"``  → key must equal ``"en"``
+    - ``["en", "de"]`` → key must be one of the listed values
+
+    Returns a list of human-readable violation descriptions.
+    """
+    violations: list[str] = []
     dump = doc.model_dump()
-    for key in contract.requires:
-        if key not in dump:
-            missing.append(key)
-    return missing
+    for path, constraint in contract.requires.items():
+        found, value = _resolve_path(dump, path)
+        if not found:
+            violations.append(path)
+        elif constraint is not True:
+            if isinstance(constraint, list):
+                if value not in constraint:
+                    violations.append(
+                        f"{path} (expected one of {constraint}, got {value!r})"
+                    )
+            elif value != constraint:
+                violations.append(f"{path} (expected {constraint!r}, got {value!r})")
+    return violations
 
 
 def merge_result(doc: Document, result: AnnotationResult) -> Document:

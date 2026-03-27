@@ -1,6 +1,6 @@
 [project]
 name = "annohub"
-version = "0.1.0"
+version = "0.2.1"
 description = "Text annotation API"
 readme = "README.md"
 requires-python = ">=3.11"

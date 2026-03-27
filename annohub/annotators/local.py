@@ -39,7 +39,7 @@ class LocalAnnotator(ABC):
         self.labels = labels if labels is not None else []
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self.contract = Contract(
-            requires=requires if requires is not None else {"text": True},
+            requires=requires if requires is not None else {"text": True},  # ty:ignore[invalid-argument-type]
             produces=produces if produces is not None else [self.annotation_type],
         )
 
