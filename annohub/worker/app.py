@@ -19,7 +19,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from annohub.models import AnnotationResult, AnnotatorInfo, Document, WsInputUnit, WsOutputUnit
+from annohub.models import (
+    AnnotationResult,
+    AnnotatorInfo,
+    Document,
+    WsInputUnit,
+    WsOutputUnit,
+)
 from annohub.worker.base import ModelWorker
 
 
@@ -89,7 +95,6 @@ def create_worker_app(
             name=worker.name,
             annotation_type=worker.annotation_type,
             description=worker.description,
-            labels=worker.labels,
             kind="remote",
             contract=worker.contract,
         )
@@ -100,7 +105,6 @@ def create_worker_app(
             name=worker.name,
             annotation_type=worker.annotation_type,
             description=worker.description,
-            labels=worker.labels,
             kind="remote",
             contract=worker.contract,
         )

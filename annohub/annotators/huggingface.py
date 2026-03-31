@@ -27,7 +27,14 @@ import logging
 from contextlib import asynccontextmanager
 
 from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import AnnotationResult, AnnotatorInfo, Document, Span, WsInputUnit, WsOutputUnit
+from annohub.models import (
+    AnnotationResult,
+    AnnotatorInfo,
+    Document,
+    Span,
+    WsInputUnit,
+    WsOutputUnit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +89,6 @@ class HuggingFaceAnnotator(RemoteAnnotator):
     """
 
     description: str = "HuggingFace Inference API NER model."
-    labels: list[str] = []
     base_url: str = "https://router.huggingface.co"
     model: str = "dslim/bert-base-NER"
     token: str = ""
@@ -139,6 +145,5 @@ class HuggingFaceAnnotator(RemoteAnnotator):
             annotation_type=self.annotation_type,
             kind="remote",
             description=self.description,
-            labels=self.labels,
             contract=self.contract,
         )

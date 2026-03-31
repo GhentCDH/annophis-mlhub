@@ -8,7 +8,6 @@ class DummyNerAnnotator(LocalAnnotator):
     """Dummy NER annotator that finds capitalized words."""
 
     description = "Regex-based NER that matches capitalized words."
-    labels = ["ENTITY"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -36,6 +35,5 @@ class DummyNerAnnotator(LocalAnnotator):
             annotation_type=self.annotation_type,
             kind="local",
             description=self.description,
-            labels=self.labels,
             contract=self.contract,
         )

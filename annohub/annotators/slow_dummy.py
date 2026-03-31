@@ -13,10 +13,22 @@ class SlowDummyAnnotator(LocalAnnotator):
     """
 
     description = "Slow dummy NER (simulates a heavy model). Good for demo streaming."
-    labels = ["ENTITY"]
 
     def __init__(self, delay: float = 1.0, **kwargs):
-        super().__init__(**{k: v for k, v in kwargs.items() if k in ("name", "annotation_type", "max_concurrency", "requires", "produces")})
+        super().__init__(
+            **{
+                k: v
+                for k, v in kwargs.items()
+                if k
+                in (
+                    "name",
+                    "annotation_type",
+                    "max_concurrency",
+                    "requires",
+                    "produces",
+                )
+            }
+        )
         self.delay = delay
 
     def annotate_sync(self, doc: Document) -> AnnotationResult:

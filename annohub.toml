@@ -47,7 +47,6 @@ annotation_type = "pos"
 class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
 description = "DBBert model for Part of Speech. Excpects greek"
-labels = ["POS", "DBBert", "remote", "greek"]
 
 [[annotator]]
 name = "hf-ner"
@@ -57,4 +56,3 @@ model = "dslim/bert-base-NER"
 token = "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"
 base_url = "https://router.huggingface.co/hf-inference"
 description = "Huggingface NER model (dslim/bert-base-NER)"
-labels = ["MANY"]

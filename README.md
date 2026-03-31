@@ -102,7 +102,6 @@ annotation_type = "pos"
 class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:8001"
 description = "My POS model"
-labels = ["POS", "remote"]
 ```
 
 All extra fields are forwarded as keyword arguments to the annotator constructor.
@@ -129,7 +128,6 @@ class MyNerAnnotator(LocalAnnotator):
     def __init__(self, **kwargs):
         super().__init__(name="my-ner", annotation_type="ner")
         self.description = "My NER model"
-        self.labels = ["NER", "custom"]
 
     def annotate_sync(self, request: AnnotationRequest) -> AnnotationResult:
         spans = [...]  # your inference here
@@ -176,7 +174,6 @@ class MyModel(ModelWorker):
     name = "my-ner"
     annotation_type = "ner"
     description = "My custom NER model"
-    labels = ["NER", "custom"]
 
     def load(self) -> None:
         self.model = ...  # load weights once at startup

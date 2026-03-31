@@ -10,7 +10,6 @@ class Annotator(Protocol):
     name: str
     annotation_type: str
     description: str
-    labels: list[str]
     contract: Contract
 
     async def annotate(self, doc: Document) -> AnnotationResult: ...

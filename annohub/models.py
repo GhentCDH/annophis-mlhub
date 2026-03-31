@@ -63,6 +63,5 @@ class AnnotatorInfo(BaseModel):
     annotation_type: str
     kind: str  # "local" or "remote"
     description: str = ""
-    labels: list[str] = []
     contract: Contract = Contract()
     available: bool = True

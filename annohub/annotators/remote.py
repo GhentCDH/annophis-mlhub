@@ -34,7 +34,6 @@ class RemoteAnnotator(ABC):
     name: str = "unnamed"
     annotation_type: str = "unknown"
     description: str = ""
-    labels: list[str]
     base_url: str = ""
     contract: Contract
 
@@ -44,7 +43,6 @@ class RemoteAnnotator(ABC):
         annotation_type: str | None = None,
         base_url: str | None = None,
         description: str | None = None,
-        labels: list[str] | None = None,
         requires: dict[str, bool] | None = None,
         produces: list[str] | None = None,
     ):
@@ -56,7 +54,6 @@ class RemoteAnnotator(ABC):
             self.base_url = base_url
         if description is not None:
             self.description = description
-        self.labels = labels if labels is not None else []
         self._client: httpx.AsyncClient | None = None
         self.contract = Contract(
             requires=requires if requires is not None else {"text": True},  # ty:ignore[invalid-argument-type]
@@ -130,7 +127,6 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             name=data["name"],
             annotation_type=data["annotation_type"],
             description=data["description"],
-            labels=data["labels"],
             kind=data["kind"],
             contract=data.get("contract", {}),
         )

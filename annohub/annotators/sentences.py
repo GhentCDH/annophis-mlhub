@@ -8,7 +8,6 @@ class SentenceAnnotator(LocalAnnotator):
     """Splits text into sentences using punctuation boundaries."""
 
     description = "Splits text into sentence spans."
-    labels = ["SENTENCE"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -20,7 +19,8 @@ class SentenceAnnotator(LocalAnnotator):
             if text:
                 spans.append(
                     Span(
-                        start=match.start() + (match.end() - match.start() - len(match.group().lstrip())),
+                        start=match.start()
+                        + (match.end() - match.start() - len(match.group().lstrip())),
                         end=match.end(),
                         label="SENTENCE",
                         text=text,
@@ -49,7 +49,6 @@ class SentenceCountAnnotator(LocalAnnotator):
     """
 
     description = "Counts sentences (requires sentences layer)."
-    labels = ["COUNT"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -60,7 +59,5 @@ class SentenceCountAnnotator(LocalAnnotator):
         return AnnotationResult(
             annotator=self.name,
             annotation_type=self.annotation_type,
-            spans=[
-                Span(start=0, end=len(doc.text), label="COUNT", text=str(count))
-            ],
+            spans=[Span(start=0, end=len(doc.text), label="COUNT", text=str(count))],
         )

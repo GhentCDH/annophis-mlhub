@@ -17,7 +17,6 @@ class LocalAnnotator(ABC):
     name: str = "unnamed"
     annotation_type: str = "unknown"
     description: str = ""
-    labels: list[str]
     contract: Contract
 
     def __init__(
@@ -25,7 +24,6 @@ class LocalAnnotator(ABC):
         name: str | None = None,
         annotation_type: str | None = None,
         description: str | None = None,
-        labels: list[str] | None = None,
         max_concurrency: int = _DEFAULT_MAX_CONCURRENCY,
         requires: dict[str, bool] | None = None,
         produces: list[str] | None = None,
@@ -36,7 +34,6 @@ class LocalAnnotator(ABC):
             self.annotation_type = annotation_type
         if description is not None:
             self.description = description
-        self.labels = labels if labels is not None else []
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self.contract = Contract(
             requires=requires if requires is not None else {"text": True},  # ty:ignore[invalid-argument-type]
@@ -55,7 +52,6 @@ class LocalAnnotator(ABC):
             annotation_type=self.annotation_type,
             kind="local",
             description=self.description,
-            labels=self.labels,
             contract=self.contract,
         )
 
