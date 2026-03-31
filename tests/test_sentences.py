@@ -67,9 +67,7 @@ async def test_sentence_count_empty():
 
 def test_pipeline_via_http(client):
     """sentence-split → sentence-count through the HTTP pipeline."""
-    annotators.register(
-        SentenceAnnotator(name="sent", annotation_type="sentences")
-    )
+    annotators.register(SentenceAnnotator(name="sent", annotation_type="sentences"))
     annotators.register(
         SentenceCountAnnotator(
             name="count",

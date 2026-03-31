@@ -43,7 +43,9 @@ def main():
         "--max-queue-size", type=int, default=64, help="Max pending requests"
     )
     serve.add_argument(
-        "--workers", type=int, default=1,
+        "--workers",
+        type=int,
+        default=1,
         help="Number of concurrent inference threads (default: 1, safe for GPU models)",
     )
 
@@ -55,7 +57,9 @@ def main():
     cls = _import_worker(args.worker_class)
     worker = cls(name=args.name, annotation_type=args.annotation_type)
 
-    app = create_worker_app(worker, max_queue_size=args.max_queue_size, max_workers=args.workers)
+    app = create_worker_app(
+        worker, max_queue_size=args.max_queue_size, max_workers=args.workers
+    )
     uvicorn.run(app, host=args.host, port=args.port)
 
 

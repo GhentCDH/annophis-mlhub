@@ -62,7 +62,12 @@ async def test_stream_session(annotator, monkeypatch):
     outgoing = []
     incoming = [
         json.dumps(
-            {"id": "42", "annotator": "test-remote", "annotation_type": "ner", "spans": []}
+            {
+                "id": "42",
+                "annotator": "test-remote",
+                "annotation_type": "ner",
+                "spans": [],
+            }
         )
     ]
 
