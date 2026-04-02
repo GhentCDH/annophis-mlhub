@@ -1,7 +1,7 @@
 import re
 
 from annophis_mlhub.annotators.local import LocalAnnotator
-from annophis_mlhub.models import AnnotationResult, AnnotatorInfo, Document, Span
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 
 
 class DummyNerAnnotator(LocalAnnotator):
@@ -12,28 +12,16 @@ class DummyNerAnnotator(LocalAnnotator):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def annotate_sync(self, doc: Document) -> AnnotationResult:
-        spans = []
-        for match in re.finditer(r"\b[A-Z][a-z]+\b", doc.text):
-            spans.append(
-                Span(
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        annotations = []
+        for i, match in enumerate(re.finditer(r"\b[A-Z][a-z]+\b", doc.text.value)):
+            annotations.append(
+                LIFAnnotation(
+                    id=f"ne{i}",
+                    type="NamedEntity",
                     start=match.start(),
                     end=match.end(),
-                    label="ENTITY",
-                    text=match.group(),
+                    features={"category": "ENTITY", "word": match.group()},
                 )
             )
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=spans,
-        )
-
-    def info_sync(self) -> AnnotatorInfo:
-        return AnnotatorInfo(
-            name=self.name,
-            annotation_type=self.annotation_type,
-            kind="local",
-            description=self.description,
-            contract=self.contract,
-        )
+        return annotations

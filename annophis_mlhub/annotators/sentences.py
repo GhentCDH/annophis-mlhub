@@ -1,7 +1,7 @@
 import re
 
 from annophis_mlhub.annotators.local import LocalAnnotator
-from annophis_mlhub.models import AnnotationResult, Document, Span
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 
 
 class SentenceAnnotator(LocalAnnotator):
@@ -12,52 +12,69 @@ class SentenceAnnotator(LocalAnnotator):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def annotate_sync(self, doc: Document) -> AnnotationResult:
-        spans = []
-        for match in re.finditer(r"[^.!?]*[.!?]", doc.text):
-            text = match.group().strip()
-            if text:
-                spans.append(
-                    Span(
-                        start=match.start()
-                        + (match.end() - match.start() - len(match.group().lstrip())),
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        text = doc.text.value
+        annotations = []
+        idx = 0
+
+        for match in re.finditer(r"[^.!?]*[.!?]", text):
+            t = match.group().strip()
+            if t:
+                start = match.start() + (
+                    match.end() - match.start() - len(match.group().lstrip())
+                )
+                annotations.append(
+                    LIFAnnotation(
+                        id=f"s{idx}",
+                        type="Sentence",
+                        start=start,
                         end=match.end(),
-                        label="SENTENCE",
-                        text=text,
                     )
                 )
+                idx += 1
+
         # catch trailing text without terminal punctuation
-        last_end = spans[-1].end if spans else 0
-        tail = doc.text[last_end:].strip()
+        last_end = annotations[-1].end if annotations else 0
+        tail = text[last_end:].strip()
         if tail:
-            start = doc.text.index(tail, last_end)
-            spans.append(
-                Span(start=start, end=start + len(tail), label="SENTENCE", text=tail)
+            start = text.index(tail, last_end)
+            annotations.append(
+                LIFAnnotation(
+                    id=f"s{idx}",
+                    type="Sentence",
+                    start=start,
+                    end=start + len(tail),
+                )
             )
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=spans,
-        )
+
+        return annotations
 
 
 class SentenceCountAnnotator(LocalAnnotator):
     """Counts the number of sentences in the document.
 
-    Requires the 'sentences' key produced by SentenceAnnotator.
-    Produces a single span whose text is the count.
+    Requires Sentence annotations in the view (produced by SentenceAnnotator).
+    Produces a single annotation whose features contain the count.
     """
 
-    description = "Counts sentences (requires sentences layer)."
+    description = "Counts sentences (requires Sentence annotations)."
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def annotate_sync(self, doc: Document) -> AnnotationResult:
-        sentences = doc.model_dump().get("sentences", [])
-        count = len(sentences)
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=[Span(start=0, end=len(doc.text), label="COUNT", text=str(count))],
-        )
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        count = 0
+        for view in doc.views:
+            for ann in view.annotations:
+                if ann.type == "Sentence":
+                    count += 1
+
+        return [
+            LIFAnnotation(
+                id="sc0",
+                type="SentenceCount",
+                start=0,
+                end=len(doc.text.value),
+                features={"count": count},
+            )
+        ]

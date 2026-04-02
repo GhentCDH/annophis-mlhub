@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 
-from annophis_mlhub.models import Contract, Span
+from annophis_mlhub.lif import LIFAnnotation, LIFContract
 
 
 class ModelWorker(ABC):
-    """Base class for wrapping an ML model into a annophis_mlhub service.
+    """Base class for wrapping an ML model into an annophis_mlhub service.
 
     Subclasses implement two methods:
 
     - ``load()``  — called once at startup to load model weights, etc.
-    - ``predict(text)`` — synchronous inference, returns a list of Spans.
+    - ``predict(text)`` — synchronous inference, returns a list of LIFAnnotations.
 
     The worker harness handles the rest: FastAPI app, health endpoint,
     internal queue, and background worker thread.
@@ -26,11 +26,8 @@ class ModelWorker(ABC):
             self.annotation_type = annotation_type
 
     @property
-    def contract(self) -> Contract:
-        return Contract(
-            requires={"text": True},
-            produces=[self.annotation_type],
-        )
+    def lif_contract(self) -> LIFContract:
+        return LIFContract(produces_annotation=[self.annotation_type])
 
     @abstractmethod
     def load(self) -> None:
@@ -38,6 +35,6 @@ class ModelWorker(ABC):
         ...
 
     @abstractmethod
-    def predict(self, text: str) -> list[Span]:
+    def predict(self, text: str) -> list[LIFAnnotation]:
         """Run inference on text.  Called from a worker thread."""
         ...

@@ -12,8 +12,11 @@ class AnnotatorConfig(BaseModel):
     name: str
     annotation_type: str
     class_path: str
-    requires: dict[str, bool | str | list[str]] = {}
-    produces: list[str] = []
+    requires_language: str | None = None
+    requires_annotation: list[str] = []
+    requires_feature: list[str] = []
+    produces_annotation: list[str] = []
+    produces_feature: list[str] = []
     # arbitrary extra fields passed to the annotator constructor
     model_config = {"extra": "allow"}
 
@@ -29,6 +32,15 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+_LIF_CONTRACT_FIELDS = {
+    "requires_language",
+    "requires_annotation",
+    "requires_feature",
+    "produces_annotation",
+    "produces_feature",
+}
 
 
 def _load_config_file() -> dict:
@@ -51,11 +63,11 @@ def load_annotators() -> None:
         cls = getattr(mod, cls_name)
 
         # pass all fields except class_path as kwargs to the constructor;
-        # omit empty requires/produces so annotator defaults kick in
+        # omit empty contract fields so annotator defaults kick in
         exclude = {"class_path"}
-        if not cfg.requires:
-            exclude.add("requires")
-        if not cfg.produces:
-            exclude.add("produces")
+        for field in _LIF_CONTRACT_FIELDS:
+            value = getattr(cfg, field)
+            if value is None or value == [] or value == "":
+                exclude.add(field)
         kwargs = cfg.model_dump(exclude=exclude)
         annotators.register(cls(**kwargs))

@@ -1,6 +1,6 @@
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
-from annophis_mlhub.models import AnnotationResult, AnnotatorInfo, Contract, Document
+from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
 
 
 @runtime_checkable
@@ -10,8 +10,8 @@ class Annotator(Protocol):
     name: str
     annotation_type: str
     description: str
-    contract: Contract
+    lif_contract: LIFContract
 
-    async def annotate(self, doc: Document) -> AnnotationResult: ...
+    async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]: ...
 
-    async def info(self) -> AnnotatorInfo: ...
+    async def info(self) -> dict[str, Any]: ...
