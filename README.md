@@ -219,3 +219,9 @@ Tests use a nonexistent config path by default so no annotators are loaded. Use 
 - **httpx** — async HTTP client for remote annotators
 - **uvicorn** — ASGI server
 - **Python ≥ 3.11**
+
+## Credits
+
+Development by [Ghent Centre for Digital Humanities - Ghent University](https://www.ghentcdh.ugent.be/). Funded by the [FWO research infrastructure project ANNOPHIS](https://www.ghentcdh.ugent.be/projects).
+
+<img src="https://www.ghentcdh.ugent.be/ghentcdh_logo_blue_text_transparent_bg_landscape.svg" alt="Landscape" width="500">
