@@ -14,7 +14,10 @@ from pyld import jsonld
 
 # ── LIF document models ─────────────────────────────────────────────────────
 
-LAPPS_CONTEXT = "http://vocab.lappsgrid.org/context-1.0.0.jsonld"
+LAPPS_CONTEXT: list[str | dict[str, str]] = [
+    "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+    {"lexvo": "http://lexvo.org/id/iso639-3/"},
+]
 
 
 class LIFText(BaseModel):
@@ -62,7 +65,7 @@ class LIFDocument(BaseModel):
 
     model_config = {"populate_by_name": True}
 
-    context: str | dict = Field(
+    context: Any = Field(
         default=LAPPS_CONTEXT,
         validation_alias="@context",
         serialization_alias="@context",
@@ -155,12 +158,14 @@ def validate_lif_contract(
     """
     violations: list[str] = []
 
-    # Build a context dict for CURIE expansion.
-    # If the document's @context is an inline dict, merge it with defaults.
+    # Build a context dict for CURIE expansion from the document's @context.
+    ctx = dict(DEFAULT_CONTEXT)
     if isinstance(doc.context, dict):
-        ctx = {**DEFAULT_CONTEXT, **doc.context}
-    else:
-        ctx = DEFAULT_CONTEXT
+        ctx.update(doc.context)
+    elif isinstance(doc.context, list):
+        for entry in doc.context:
+            if isinstance(entry, dict):
+                ctx.update(entry)
 
     # ── requires_language ────────────────────────────────────────────────
     if contract.requires_language:

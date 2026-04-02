@@ -68,14 +68,18 @@ def _build_descriptor(annotator: Any) -> dict[str, Any]:
     """Build a JSON-LD annotator descriptor from an annotator's lif_contract."""
     from annophis_mlhub.config import settings
 
-    base_url = settings.vocab_base_url.rstrip("/") + "/"
+    vocab_ns = settings.vocab_base_url.rstrip("/") + "/"
+    vocab_url = settings.base_url.rstrip("/") + "/vocab"
     desc: dict[str, Any] = {
-        "@context": {
-            "annophis_mlhub": base_url,
-            "lapps": "http://vocab.lappsgrid.org/",
-            "dcterms": "http://purl.org/dc/terms/",
-            "lexvo": "http://lexvo.org/id/iso639-3/",
-        },
+        "@context": [
+            vocab_url,
+            {
+                "annophis_mlhub": vocab_ns,
+                "lapps": "http://vocab.lappsgrid.org/",
+                "dcterms": "http://purl.org/dc/terms/",
+                "lexvo": "http://lexvo.org/id/iso639-3/",
+            },
+        ],
         "@type": "annophis_mlhub:Annotator",
         "annophis_mlhub:name": annotator.name,
         "annophis_mlhub:description": annotator.description,
