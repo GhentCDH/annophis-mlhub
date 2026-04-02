@@ -1,8 +1,8 @@
 import re
 import time
 
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationResult, Document, Span
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.models import AnnotationResult, Document, Span
 
 
 class SlowDummyAnnotator(LocalAnnotator):

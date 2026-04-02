@@ -1,8 +1,11 @@
 import pytest
 
-from annohub import annotators
-from annohub.annotators.sentences import SentenceAnnotator, SentenceCountAnnotator
-from annohub.models import Document
+from annophis_mlhub import annotators
+from annophis_mlhub.annotators.sentences import (
+    SentenceAnnotator,
+    SentenceCountAnnotator,
+)
+from annophis_mlhub.models import Document
 
 
 @pytest.mark.asyncio

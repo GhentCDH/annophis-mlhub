@@ -3,9 +3,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from annohub import annotators
-from annohub.annotators.base import Annotator
-from annohub.models import AnnotatorInfo, Contract, Health
+from annophis_mlhub import annotators
+from annophis_mlhub.annotators.base import Annotator
+from annophis_mlhub.models import AnnotatorInfo, Contract, Health
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

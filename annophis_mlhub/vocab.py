@@ -1,11 +1,11 @@
-"""Generates the annohub JSON-LD vocabulary document dynamically.
+"""Generates the annophis_mlhub JSON-LD vocabulary document dynamically.
 
 The base URL is configured via ANNOHUB_VOCAB_BASE_URL (default:
-http://vocab.annohub.org/).  This allows self-hosted deployments to
+http://vocab.annophis_mlhub.org/).  This allows self-hosted deployments to
 mint their own vocabulary URIs.
 """
 
-from annohub.config import settings
+from annophis_mlhub.config import settings
 
 
 def _build() -> dict:
@@ -13,7 +13,7 @@ def _build() -> dict:
 
     return {
         "@context": {
-            "annohub": base,
+            "annophis_mlhub": base,
             "owl": "http://www.w3.org/2002/07/owl#",
             "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
             "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
@@ -31,7 +31,7 @@ def _build() -> dict:
             },
             # ── Classes ──────────────────────────────────────────────────────
             {
-                "@id": "annohub:Annotator",
+                "@id": "annophis_mlhub:Annotator",
                 "@type": "owl:Class",
                 "rdfs:label": "Annotator",
                 "rdfs:comment": (
@@ -41,7 +41,7 @@ def _build() -> dict:
             },
             # ── Object properties ─────────────────────────────────────────────
             {
-                "@id": "annohub:requiresAnnotation",
+                "@id": "annophis_mlhub:requiresAnnotation",
                 "@type": "owl:ObjectProperty",
                 "rdfs:label": "requires annotation",
                 "rdfs:comment": (
@@ -49,22 +49,22 @@ def _build() -> dict:
                     "be present in the input document. For example, a POS tagger "
                     "may require tokenisation."
                 ),
-                "rdfs:domain": {"@id": "annohub:Annotator"},
+                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
                 "rdfs:range": {"@id": "rdfs:Class"},
             },
             {
-                "@id": "annohub:requiresLanguage",
+                "@id": "annophis_mlhub:requiresLanguage",
                 "@type": "owl:ObjectProperty",
                 "rdfs:label": "requires language",
                 "rdfs:comment": (
                     "A language (identified by URI, e.g. from lexvo.org) that "
                     "the input text must be written in."
                 ),
-                "rdfs:domain": {"@id": "annohub:Annotator"},
+                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
                 "rdfs:range": {"@id": "dcterms:LinguisticSystem"},
             },
             {
-                "@id": "annohub:requiresFeature",
+                "@id": "annophis_mlhub:requiresFeature",
                 "@type": "owl:ObjectProperty",
                 "rdfs:label": "requires feature",
                 "rdfs:comment": (
@@ -72,22 +72,22 @@ def _build() -> dict:
                     "must already be populated on input annotations. For example, "
                     "a lemmatiser may require the pos feature on Token annotations."
                 ),
-                "rdfs:domain": {"@id": "annohub:Annotator"},
+                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
                 "rdfs:range": {"@id": "rdf:Property"},
             },
             {
-                "@id": "annohub:producesAnnotation",
+                "@id": "annophis_mlhub:producesAnnotation",
                 "@type": "owl:ObjectProperty",
                 "rdfs:label": "produces annotation",
                 "rdfs:comment": (
                     "An annotation type (identified by URI) that this annotator "
                     "adds to the output document."
                 ),
-                "rdfs:domain": {"@id": "annohub:Annotator"},
+                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
                 "rdfs:range": {"@id": "rdfs:Class"},
             },
             {
-                "@id": "annohub:producesFeature",
+                "@id": "annophis_mlhub:producesFeature",
                 "@type": "owl:ObjectProperty",
                 "rdfs:label": "produces feature",
                 "rdfs:comment": (
@@ -96,7 +96,7 @@ def _build() -> dict:
                     "example, a POS tagger produces the pos feature on Token "
                     "annotations."
                 ),
-                "rdfs:domain": {"@id": "annohub:Annotator"},
+                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
                 "rdfs:range": {"@id": "rdf:Property"},
             },
         ],

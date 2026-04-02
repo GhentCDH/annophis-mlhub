@@ -1,6 +1,6 @@
-from annohub import annotators
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationResult, Document, Span
+from annophis_mlhub import annotators
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.models import AnnotationResult, Document, Span
 
 
 class DummyAnnotator(LocalAnnotator):
@@ -91,7 +91,7 @@ def test_ws_annotate_unknown(client):
 
 
 def test_dummy_ner_from_config(_use_real_config, client):
-    """Test the dummy-ner annotator loaded from annohub.toml."""
+    """Test the dummy-ner annotator loaded from annophis_mlhub.toml."""
     resp = client.get("/annotators")
     data = resp.json()
     names = [a["name"] for a in data]

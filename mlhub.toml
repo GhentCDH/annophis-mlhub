@@ -5,20 +5,20 @@
 [[annotator]]
 name = "dummy-ner"
 annotation_type = "ner"
-class_path = "annohub.annotators.dummy.DummyNerAnnotator"
+class_path = "annophis_mlhub.annotators.dummy.DummyNerAnnotator"
 produces = ["ner"]
 
 [[annotator]]
 name = "sentence-split"
 annotation_type = "sentences"
-class_path = "annohub.annotators.sentences.SentenceAnnotator"
+class_path = "annophis_mlhub.annotators.sentences.SentenceAnnotator"
 description = "Splits text into sentence spans"
 produces = ["sentences"]
 
 [[annotator]]
 name = "sentence-count"
 annotation_type = "sentence_count"
-class_path = "annohub.annotators.sentences.SentenceCountAnnotator"
+class_path = "annophis_mlhub.annotators.sentences.SentenceCountAnnotator"
 description = "Counts sentences (pipe after sentence-split)"
 requires = { text = true, sentences = true }
 produces = ["sentence_count"]
@@ -26,17 +26,17 @@ produces = ["sentence_count"]
 [[annotator]]
 name = "slow-ner"
 annotation_type = "ner"
-class_path = "annohub.annotators.slow_dummy.SlowDummyAnnotator"
+class_path = "annophis_mlhub.annotators.slow_dummy.SlowDummyAnnotator"
 delay = 1.0
 
 # Example: generic remote annotator (no custom subclass needed).
-# The remote service must speak the annohub protocol (POST /annotate).
-# Start a model service with: python -m annohub.worker serve my_module:MyModel
+# The remote service must speak the annophis-mlhub protocol (POST /annotate).
+# Start a model service with: python -m annophis-mlhub.worker serve my_module:MyModel
 #
 # [[annotator]]
 # name = "remote-ner"
 # annotation_type = "ner"
-# class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
+# class_path = "annophis-mlhub.annotators.remote.GenericRemoteAnnotator"
 # base_url = "http://localhost:8001"
 # endpoint = "/annotate"     # optional, defaults to /annotate
 # timeout = 30.0             # optional, defaults to 30s
@@ -44,14 +44,14 @@ delay = 1.0
 [[annotator]]
 name = "colinmodel"
 annotation_type = "pos"
-class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
+class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
 description = "DBBert model for Part of Speech. Excpects greek"
 
 [[annotator]]
 name = "hf-ner"
 annotation_type = "ner"
-class_path = "annohub.annotators.huggingface.HuggingFaceAnnotator"
+class_path = "annophis_mlhub.annotators.huggingface.HuggingFaceAnnotator"
 model = "dslim/bert-base-NER"
 token = "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"
 base_url = "https://router.huggingface.co/hf-inference"

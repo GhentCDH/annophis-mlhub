@@ -1,9 +1,9 @@
 """Tests for contract validation logic."""
 
-from annohub import annotators
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationResult, Contract, Document, Span
-from annohub.routes.annotate import validate_contract
+from annophis_mlhub import annotators
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.models import AnnotationResult, Contract, Document, Span
+from annophis_mlhub.routes.annotate import validate_contract
 
 
 class NerAnnotator(LocalAnnotator):

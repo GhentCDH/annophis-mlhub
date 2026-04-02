@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 
-from annohub.models import Contract, Span
+from annophis_mlhub.models import Contract, Span
 
 
 class ModelWorker(ABC):
-    """Base class for wrapping an ML model into a annohub service.
+    """Base class for wrapping an ML model into a annophis_mlhub service.
 
     Subclasses implement two methods:
 

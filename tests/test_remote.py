@@ -4,8 +4,8 @@ import httpx
 import pytest
 import websockets
 
-from annohub.annotators.remote import GenericRemoteAnnotator
-from annohub.models import Document, WsInputUnit
+from annophis_mlhub.annotators.remote import GenericRemoteAnnotator
+from annophis_mlhub.models import Document, WsInputUnit
 
 
 @pytest.fixture

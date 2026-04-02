@@ -1,8 +1,8 @@
-"""Annohub worker harness — wrap any model into a annohub-compatible service.
+"""Annohub worker harness — wrap any model into a annophis_mlhub-compatible service.
 
 Usage::
 
-    from annohub.worker import ModelWorker, Span
+    from annophis_mlhub.worker import ModelWorker, Span
 
     class MyModel(ModelWorker):
         def load(self):
@@ -19,10 +19,10 @@ Usage::
 
 Then run::
 
-    python -m annohub.worker serve my_module:MyModel --port 8001
+    python -m annophis_mlhub.worker serve my_module:MyModel --port 8001
 
 Or run the FastAPI server in a script::
-    from annohub.worker import create_worker_app
+    from annophis_mlhub.worker import create_worker_app
     from my_module import MyModel
     import uvicorn
 
@@ -33,8 +33,8 @@ Or run the FastAPI server in a script::
         uvicorn.run(app, host="0.0.0.0", port=8001)
 """
 
-from annohub.models import Span
-from annohub.worker.app import create_worker_app
-from annohub.worker.base import ModelWorker
+from annophis_mlhub.models import Span
+from annophis_mlhub.worker.app import create_worker_app
+from annophis_mlhub.worker.base import ModelWorker
 
 __all__ = ["ModelWorker", "Span", "create_worker_app"]

@@ -5,10 +5,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from annohub import annotators
-from annohub.annotators.base import Annotator
-from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import (
+from annophis_mlhub import annotators
+from annophis_mlhub.annotators.base import Annotator
+from annophis_mlhub.annotators.remote import RemoteAnnotator
+from annophis_mlhub.models import (
     AnnotationResult,
     Contract,
     Document,

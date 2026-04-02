@@ -3,8 +3,8 @@ import time
 
 import pytest
 
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationResult, Document
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.models import AnnotationResult, Document
 
 
 class SlowAnnotator(LocalAnnotator):

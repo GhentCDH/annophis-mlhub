@@ -1,6 +1,6 @@
 from typing import Protocol, runtime_checkable
 
-from annohub.models import AnnotationResult, AnnotatorInfo, Contract, Document
+from annophis_mlhub.models import AnnotationResult, AnnotatorInfo, Contract, Document
 
 
 @runtime_checkable

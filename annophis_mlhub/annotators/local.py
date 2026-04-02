@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from annohub.models import AnnotationResult, AnnotatorInfo, Contract, Document
+from annophis_mlhub.models import AnnotationResult, AnnotatorInfo, Contract, Document
 
 _DEFAULT_MAX_CONCURRENCY = 1
 

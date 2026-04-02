@@ -1,14 +1,14 @@
 """RemoteAnnotator that translates HuggingFace Inference API responses.
 
 The HF Inference API has its own schema — this annotator demonstrates
-translating a foreign API into annohub's internal model.
+translating a foreign API into annophis_mlhub's internal model.
 
-Usage in annohub.toml:
+Usage in annophis_mlhub.toml:
 
     [[annotator]]
     name = "hf-ner"
     annotation_type = "ner"
-    class_path = "annohub.annotators.huggingface.HuggingFaceAnnotator"
+    class_path = "annophis_mlhub.annotators.huggingface.HuggingFaceAnnotator"
     base_url = "https://router.huggingface.co"
     model = "dslim/bert-base-NER"
     token = "hf_..."
@@ -26,8 +26,8 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import (
+from annophis_mlhub.annotators.remote import RemoteAnnotator
+from annophis_mlhub.models import (
     AnnotationResult,
     AnnotatorInfo,
     Document,
@@ -83,7 +83,7 @@ class HuggingFaceAnnotator(RemoteAnnotator):
 
         [{"entity_group": "PER", "word": "Alice", "start": 0, "end": 5, "score": 0.99}]
 
-    into annohub Spans::
+    into annophis_mlhub Spans::
 
         [{"label": "PER", "text": "Alice", "start": 0, "end": 5}]
     """

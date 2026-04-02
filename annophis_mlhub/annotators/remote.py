@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import httpx
 import websockets
 
-from annohub.models import (
+from annophis_mlhub.models import (
     AnnotationResult,
     AnnotatorInfo,
     Contract,
@@ -84,7 +84,7 @@ class RemoteAnnotator(ABC):
 class GenericRemoteAnnotator(RemoteAnnotator):
     """Remote annotator that POSTs to {base_url}/annotate.
 
-    Expects the remote service to speak the standard annohub protocol:
+    Expects the remote service to speak the standard annophis_mlhub protocol:
 
         POST /annotate  {document JSON}
         -> {"annotator": "...", "annotation_type": "...", "spans": [...]}
@@ -94,7 +94,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         [[annotator]]
         name = "remote-ner"
         annotation_type = "ner"
-        class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
+        class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
         base_url = "http://localhost:8001"
     """
 

@@ -3,7 +3,7 @@ import logging
 import uvicorn
 from rich.logging import RichHandler
 
-from annohub.config import settings
+from annophis_mlhub.config import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,7 +15,7 @@ logging.basicConfig(
 
 def main():
     uvicorn.run(
-        "annohub.app:app",
+        "annophis_mlhub.app:app",
         host=settings.host,
         port=settings.port,
         reload=settings.debug,

@@ -19,14 +19,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from annohub.models import (
+from annophis_mlhub.models import (
     AnnotationResult,
     AnnotatorInfo,
     Document,
     WsInputUnit,
     WsOutputUnit,
 )
-from annohub.worker.base import ModelWorker
+from annophis_mlhub.worker.base import ModelWorker
 
 
 class _WorkerInfo(AnnotatorInfo):
@@ -84,7 +84,7 @@ def create_worker_app(
         await asyncio.gather(*processors)
 
     app = FastAPI(
-        title=f"annohub-worker: {worker.name}",
+        title=f"annophis_mlhub-worker: {worker.name}",
         version="0.1.0",
         lifespan=lifespan,
     )

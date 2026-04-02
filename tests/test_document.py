@@ -1,7 +1,7 @@
 """Tests for Document model behavior."""
 
-from annohub.models import AnnotationResult, Document, Span
-from annohub.routes.annotate import merge_result
+from annophis_mlhub.models import AnnotationResult, Document, Span
+from annophis_mlhub.routes.annotate import merge_result
 
 
 def test_document_creation():

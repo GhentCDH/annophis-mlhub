@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from annohub.models import Span
-from annohub.worker import ModelWorker, create_worker_app
+from annophis_mlhub.models import Span
+from annophis_mlhub.worker import ModelWorker, create_worker_app
 
 
 class UpperCaseWorker(ModelWorker):

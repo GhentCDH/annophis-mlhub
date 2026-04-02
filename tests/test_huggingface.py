@@ -1,8 +1,8 @@
 import httpx
 import pytest
 
-from annohub.annotators.huggingface import HuggingFaceAnnotator
-from annohub.models import Document
+from annophis_mlhub.annotators.huggingface import HuggingFaceAnnotator
+from annophis_mlhub.models import Document
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def annotator():
 
 @pytest.mark.asyncio
 async def test_translates_hf_response(annotator, monkeypatch):
-    """HF entities (entity_group, word) are translated to annohub Spans (label, text)."""
+    """HF entities (entity_group, word) are translated to annophis_mlhub Spans (label, text)."""
 
     async def fake_post(self, url, *, json, headers, timeout):
         assert "/models/dslim/bert-base-NER" in url

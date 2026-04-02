@@ -5,7 +5,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
-CONFIG_PATH = Path("annohub.toml")
+CONFIG_PATH = Path("mlhub.toml")
 
 
 class AnnotatorConfig(BaseModel):
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
     config_path: Path = CONFIG_PATH
-    vocab_base_url: str = "http://vocab.annohub.org/"
+    vocab_base_url: str = "http://vocab.annophis_mlhub.org/"
 
 
 settings = Settings()
@@ -40,7 +40,7 @@ def _load_config_file() -> dict:
 
 
 def load_annotators() -> None:
-    from annohub import annotators
+    from annophis_mlhub import annotators
 
     config = _load_config_file()
 

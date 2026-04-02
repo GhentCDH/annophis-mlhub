@@ -1,4 +1,4 @@
-from annohub.annotators.base import Annotator
+from annophis_mlhub.annotators.base import Annotator
 
 _registry: dict[str, Annotator] = {}
 
