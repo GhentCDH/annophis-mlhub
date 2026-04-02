@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
     config_path: Path = CONFIG_PATH
+    vocab_base_url: str = "http://vocab.annohub.org/"
 
 
 settings = Settings()
