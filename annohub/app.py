@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from annohub.docs import add_scalar_docs
-from annohub.routes import annotate, health
+from annohub.routes import annotate, health, vocab
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router, tags=["system"])
     app.include_router(annotate.router, tags=["annotation"])
+    app.include_router(vocab.router, tags=["vocabulary"])
     add_scalar_docs(app)
     return app
 
