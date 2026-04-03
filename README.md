@@ -53,7 +53,10 @@ Response (the input document enriched with a view containing annotations):
 
 ```json
 {
-  "@context": ["http://vocab.lappsgrid.org/context-1.0.0.jsonld", {"lexvo": "http://lexvo.org/id/iso639-3/"}],
+  "@context": [
+    "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+    { "lexvo": "http://lexvo.org/id/iso639-3/" }
+  ],
   "text": { "@value": "Athens is the capital of Greece." },
   "views": [
     {
@@ -64,8 +67,20 @@ Response (the input document enriched with a view containing annotations):
         }
       },
       "annotations": [
-        { "@type": "NamedEntity", "id": "ne0", "start": 0, "end": 6, "features": { "category": "LOC", "word": "Athens" } },
-        { "@type": "NamedEntity", "id": "ne1", "start": 25, "end": 31, "features": { "category": "LOC", "word": "Greece" } }
+        {
+          "@type": "NamedEntity",
+          "id": "ne0",
+          "start": 0,
+          "end": 6,
+          "features": { "category": "LOC", "word": "Athens" }
+        },
+        {
+          "@type": "NamedEntity",
+          "id": "ne1",
+          "start": 25,
+          "end": 31,
+          "features": { "category": "LOC", "word": "Greece" }
+        }
       ]
     }
   ]
@@ -78,13 +93,22 @@ Annotators run sequentially as a pipeline — each one receives the document enr
 
 ```json
 {
-  "@context": ["http://localhost:8000/vocab", {"annophis_mlhub": "http://vocab.annophis_mlhub.org/", "rdfs": "...", "lapps": "...", "dcterms": "...", "lexvo": "..."}],
+  "@context": [
+    "http://localhost:8000/vocab",
+    {
+      "annophis_mlhub": "http://vocab.annophis_mlhub.org/",
+      "rdfs": "...",
+      "lapps": "...",
+      "dcterms": "...",
+      "lexvo": "..."
+    }
+  ],
   "@graph": [
     {
       "@type": "annophis_mlhub:Annotator",
       "rdfs:label": "my-ner",
       "dcterms:description": "My NER model",
-      "annophis_mlhub:producesAnnotation": [{"@id": "lapps:NamedEntity"}]
+      "annophis_mlhub:producesAnnotation": [{ "@id": "lapps:NamedEntity" }]
     }
   ]
 }
@@ -118,13 +142,13 @@ Omit the `annotators` query parameter to target all registered annotators.
 
 Each annotator declares a **contract** describing what it requires and what it produces, using [LAPPS vocabulary](http://vocab.lappsgrid.org/) URIs:
 
-| Field                | Description                                   | Example                |
-| -------------------- | --------------------------------------------- | ---------------------- |
-| `requires_language`  | Language the input text must be in (lexvo URI) | `"lexvo:grc"`          |
-| `requires_annotation`| Annotation types that must already be present  | `["lapps:Sentence"]`   |
-| `requires_feature`   | Features that must exist on prior annotations  | `["lapps:Token#pos"]`  |
-| `produces_annotation`| Annotation types this annotator adds           | `["lapps:NamedEntity"]`|
-| `produces_feature`   | Features this annotator populates              | `["lapps:Token#pos"]`  |
+| Field                 | Description                                    | Example                 |
+| --------------------- | ---------------------------------------------- | ----------------------- |
+| `requires_language`   | Language the input text must be in (lexvo URI) | `"lexvo:grc"`           |
+| `requires_annotation` | Annotation types that must already be present  | `["lapps:Sentence"]`    |
+| `requires_feature`    | Features that must exist on prior annotations  | `["lapps:Token#pos"]`   |
+| `produces_annotation` | Annotation types this annotator adds           | `["lapps:NamedEntity"]` |
+| `produces_feature`    | Features this annotator populates              | `["lapps:Token#pos"]`   |
 
 Before running an annotator, the hub validates its contract against the current state of the LIF document. CURIEs (e.g. `lapps:Sentence`) are expanded to full URIs using [pyld](https://github.com/digitalbazaar/pyld) for spec-compliant JSON-LD processing. If requirements are not met, the request fails with a 422 error listing the violations.
 
@@ -256,20 +280,16 @@ The harness exposes `/annotate`, `/health`, and `/info` endpoints (all returning
 
 ## Running
 
-```sh
-python main.py
-```
-
-Or via the installed script:
+The project uses [https://docs.astral.sh/uv](`uv`) for managing the python dependencies in a dedicated `venv`.
 
 ```sh
-annophis_mlhub
+uv run main.py
 ```
 
 ## Testing
 
 ```sh
-uv run pytest tests/ -v
+uv run -m pytest tests/ -v
 ```
 
 Tests use a nonexistent config path by default so no annotators are loaded. Use the `_use_real_config` fixture to test against `mlhub.toml`.
