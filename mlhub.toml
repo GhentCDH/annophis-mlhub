@@ -1,0 +1,69 @@
+# Annotators are defined as [[annotator]] entries.
+# Each needs: name, annotation_type, class_path.
+# Any extra fields are passed to the annotator constructor.
+#
+# LIF contract fields (all optional):
+#   requires_language      - lexvo URI, e.g. "lexvo:grc"
+#   requires_annotation    - list of LAPPS types, e.g. ["lapps:Sentence"]
+#   requires_feature       - list of LAPPS features, e.g. ["lapps:Token#pos"]
+#   produces_annotation    - list of LAPPS types produced
+#   produces_feature       - list of LAPPS features produced
+
+[[annotator]]
+name = "dummy-ner"
+annotation_type = "ner"
+class_path = "annophis_mlhub.annotators.dummy.DummyNerAnnotator"
+produces_annotation = ["lapps:NamedEntity"]
+
+[[annotator]]
+name = "sentence-split"
+annotation_type = "sentences"
+class_path = "annophis_mlhub.annotators.sentences.SentenceAnnotator"
+description = "Splits text into sentence spans"
+produces_annotation = ["lapps:Sentence"]
+
+[[annotator]]
+name = "sentence-count"
+annotation_type = "sentence_count"
+class_path = "annophis_mlhub.annotators.sentences.SentenceCountAnnotator"
+description = "Counts sentences (pipe after sentence-split)"
+requires_annotation = ["lapps:Sentence"]
+
+[[annotator]]
+name = "slow-ner"
+annotation_type = "ner"
+class_path = "annophis_mlhub.annotators.slow_dummy.SlowDummyAnnotator"
+delay = 1.0
+produces_annotation = ["lapps:NamedEntity"]
+
+# Example: generic remote annotator (no custom subclass needed).
+# The remote service must speak the LIF protocol (POST /annotate).
+# Start a model service with: python -m annophis_mlhub.worker serve my_module:MyModel
+#
+# [[annotator]]
+# name = "remote-ner"
+# annotation_type = "ner"
+# class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
+# base_url = "http://localhost:8001"
+# endpoint = "/annotate"     # optional, defaults to /annotate
+# timeout = 30.0             # optional, defaults to 30s
+
+[[annotator]]
+name = "colinmodel"
+annotation_type = "pos"
+class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
+base_url = "http://localhost:10000"
+description = "DBBert model for Part of Speech. Expects greek"
+requires_language = "lexvo:grc"
+produces_annotation = ["lapps:Token"]
+produces_feature = ["lapps:Token#pos"]
+
+[[annotator]]
+name = "hf-ner"
+annotation_type = "ner"
+class_path = "annophis_mlhub.annotators.huggingface.HuggingFaceAnnotator"
+model = "dslim/bert-base-NER"
+token = "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"
+base_url = "https://router.huggingface.co/hf-inference"
+description = "Huggingface NER model (dslim/bert-base-NER)"
+produces_annotation = ["lapps:NamedEntity"]

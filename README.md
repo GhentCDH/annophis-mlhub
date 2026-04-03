@@ -12,22 +12,22 @@ graph TD
 
     Hub -->|asyncio.gather| Local[Local Annotators\nthread pool]
     Hub -->|HTTP / WS| Remote[Remote Annotators]
-    Remote -->|annohub protocol| Queue[asyncio.Queue]
+    Remote -->|annophis-mlhub protocol| Queue[asyncio.Queue]
 
     subgraph Worker Harness
         Queue -->|worker threads| Model[ML Model\nGPU/CPU]
     end
 
-    Remote -->|any protocol\n through annohub wrapper| External[External Annotator]
+    Remote -->|any protocol\n through annophis-mlhub wrapper| External[External Annotator]
 ```
 
-**Hub** (`annohub/`) — FastAPI app. Loads annotators from `annohub.toml` at startup and routes requests to them.
+**Hub** (`annophis_mlhub/`) — FastAPI app. Loads annotators from `mlhub.toml` at startup and routes requests to them.
 
 **Local annotators** — run in the hub process. Blocking work is offloaded with `asyncio.to_thread`; an `asyncio.Semaphore` limits concurrency (default: 1, i.e. serialised).
 
-**Remote annotators** — the hub proxies to external HTTP or WebSocket APIs. The `RemoteAnnotator` base class handles the HTTP client lifecycle; subclasses translate between the external API's schema and annohub's internal models. This can be any API — `GenericRemoteAnnotator` wraps services that already speak the annohub protocol (e.g. worker harness instances), while other subclasses can adapt entirely different APIs (e.g. `HuggingFaceAnnotator` translates the HF Inference API's response format).
+**Remote annotators** — the hub proxies to external HTTP or WebSocket APIs. The `RemoteAnnotator` base class handles the HTTP client lifecycle; subclasses translate between the external API's schema and annophis-mlhub's internal models. This can be any API — `GenericRemoteAnnotator` wraps services that already speak the annophis-mlhub protocol (e.g. worker harness instances), while other subclasses can adapt entirely different APIs (e.g. `HuggingFaceAnnotator` translates the HF Inference API's response format).
 
-**Worker harness** (`annohub/worker/`) — a thin FastAPI wrapper that makes any ML model speak the annohub protocol, making it a drop-in remote annotator. An internal `asyncio.Queue` serialises inference through a single persistent background thread, which is safe for GPU models.
+**Worker harness** (`annophis_mlhub/worker/`) — a thin FastAPI wrapper that makes any ML model speak the annophis-mlhub protocol, making it a drop-in remote annotator. An internal `asyncio.Queue` serialises inference through a single persistent background thread, which is safe for GPU models.
 
 ## API
 
@@ -86,7 +86,7 @@ Omit the `annotators` query parameter to target all registered annotators.
 
 ## Configuration
 
-Annotators are declared in `annohub.toml`:
+Annotators are declared in `mlhub.toml`:
 
 ```toml
 # Local annotator (runs in-process)
@@ -99,7 +99,7 @@ class_path = "my_package.MyNerAnnotator"
 [[annotator]]
 name = "remote-pos"
 annotation_type = "pos"
-class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
+class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:8001"
 description = "My POS model"
 ```
@@ -121,8 +121,8 @@ Server settings via environment variables:
 Subclass `LocalAnnotator` and implement `annotate_sync()`:
 
 ```python
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationRequest, AnnotationResult, Span
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.models import AnnotationRequest, AnnotationResult, Span
 
 class MyNerAnnotator(LocalAnnotator):
     def __init__(self, **kwargs):
@@ -138,7 +138,7 @@ class MyNerAnnotator(LocalAnnotator):
         )
 ```
 
-Add to `annohub.toml`:
+Add to `mlhub.toml`:
 
 ```toml
 [[annotator]]
@@ -149,15 +149,15 @@ class_path = "my_package.MyNerAnnotator"
 
 ### Remote annotator
 
-For any external API, subclass `RemoteAnnotator` and implement `annotate()` and `info()`. The subclass is responsible for translating between the external API's schema and annohub's `AnnotationResult` / `AnnotatorInfo` models. See `HuggingFaceAnnotator` for a real example that adapts the HF Inference API.
+For any external API, subclass `RemoteAnnotator` and implement `annotate()` and `info()`. The subclass is responsible for translating between the external API's schema and annophis-mlhub's `AnnotationResult` / `AnnotatorInfo` models. See `HuggingFaceAnnotator` for a real example that adapts the HF Inference API.
 
-**`GenericRemoteAnnotator`** is a ready-made subclass for services that already speak the annohub protocol (i.e. a worker harness). No code needed — configure it entirely from TOML:
+**`GenericRemoteAnnotator`** is a ready-made subclass for services that already speak the annophis-mlhub protocol (i.e. a worker harness). No code needed — configure it entirely from TOML:
 
 ```toml
 [[annotator]]
 name = "remote-ner"
 annotation_type = "ner"
-class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
+class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:8001"
 ```
 
@@ -168,7 +168,7 @@ The remote service must expose `POST /annotate` accepting `{"text": "..."}` and 
 Use the worker harness to turn any ML model into a valid remote annotator:
 
 ```python
-from annohub.worker import ModelWorker, Span
+from annophis_mlhub.worker import ModelWorker, Span
 
 class MyModel(ModelWorker):
     name = "my-ner"
@@ -185,7 +185,7 @@ class MyModel(ModelWorker):
 Run the worker service:
 
 ```sh
-python -m annohub.worker serve my_module:MyModel \
+python -m annophis_mlhub.worker serve my_module:MyModel \
     --name my-ner --annotation-type ner --port 8001
 ```
 
@@ -200,7 +200,7 @@ python main.py
 Or via the installed script:
 
 ```sh
-annohub
+annophis_mlhub
 ```
 
 ## Testing
@@ -209,7 +209,7 @@ annohub
 uv run pytest tests/ -v
 ```
 
-Tests use a nonexistent config path by default so no annotators are loaded. Use the `_use_real_config` fixture to test against `annohub.toml`.
+Tests use a nonexistent config path by default so no annotators are loaded. Use the `_use_real_config` fixture to test against `mlhub.toml`.
 
 ## Stack
 

@@ -19,24 +19,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from annohub.models import (
-    AnnotationResult,
-    AnnotatorInfo,
-    Document,
-    WsInputUnit,
-    WsOutputUnit,
+from annophis_mlhub.annotators.local import (
+    build_descriptor_context,
+    build_descriptor_node,
 )
-from annohub.worker.base import ModelWorker
-
-
-class _WorkerInfo(AnnotatorInfo):
-    status: str = "ok"
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
+from annophis_mlhub.models import WsInputUnit, WsOutputUnit
+from annophis_mlhub.worker.base import ModelWorker
 
 
 class _QueueItem:
     __slots__ = ("text", "future")
 
-    def __init__(self, text: str, future: asyncio.Future[AnnotationResult]):
+    def __init__(self, text: str, future: asyncio.Future[list[LIFAnnotation]]):
         self.text = text
         self.future = future
 
@@ -62,13 +57,8 @@ def create_worker_app(
             if item is None:
                 break
             try:
-                spans = await asyncio.to_thread(worker.predict, item.text)
-                result = AnnotationResult(
-                    annotator=worker.name,
-                    annotation_type=worker.annotation_type,
-                    spans=spans,
-                )
-                item.future.set_result(result)
+                annotations = await asyncio.to_thread(worker.predict, item.text)
+                item.future.set_result(annotations)
             except Exception as exc:
                 item.future.set_exception(exc)
             finally:
@@ -84,37 +74,28 @@ def create_worker_app(
         await asyncio.gather(*processors)
 
     app = FastAPI(
-        title=f"annohub-worker: {worker.name}",
+        title=f"annophis_mlhub-worker: {worker.name}",
         version="0.1.0",
         lifespan=lifespan,
     )
 
-    @app.get("/health", response_model=_WorkerInfo)
+    @app.get("/health")
     async def health():
-        return _WorkerInfo(
-            name=worker.name,
-            annotation_type=worker.annotation_type,
-            description=worker.description,
-            kind="remote",
-            contract=worker.contract,
-        )
+        desc = {**build_descriptor_node(worker), "@context": build_descriptor_context()}
+        desc["status"] = "ok"
+        return desc
 
-    @app.get("/info", response_model=_WorkerInfo)
+    @app.get("/info")
     async def info():
-        return _WorkerInfo(
-            name=worker.name,
-            annotation_type=worker.annotation_type,
-            description=worker.description,
-            kind="remote",
-            contract=worker.contract,
-        )
+        return {**build_descriptor_node(worker), "@context": build_descriptor_context()}
 
-    @app.post("/annotate", response_model=AnnotationResult)
-    async def annotate(doc: Document):
+    @app.post("/annotate")
+    async def annotate(doc: LIFDocument):
         loop = asyncio.get_running_loop()
-        future: asyncio.Future[AnnotationResult] = loop.create_future()
-        await queue.put(_QueueItem(text=doc.text, future=future))
-        return await future
+        future: asyncio.Future[list[LIFAnnotation]] = loop.create_future()
+        await queue.put(_QueueItem(text=doc.text.value, future=future))
+        annotations = await future
+        return {"annotations": [a.model_dump(by_alias=True) for a in annotations]}
 
     @app.websocket("/annotate")
     async def ws_annotate(websocket: WebSocket):
@@ -131,7 +112,9 @@ def create_worker_app(
                     future.add_done_callback(
                         lambda f, uid=unit.id: result_queue.put_nowait((uid, f))
                     )
-                    await queue.put(_QueueItem(text=unit.document.text, future=future))
+                    await queue.put(
+                        _QueueItem(text=unit.document.text.value, future=future)
+                    )
             except WebSocketDisconnect:
                 pass
             finally:
@@ -144,14 +127,13 @@ def create_worker_app(
                     break
                 uid, future = item
                 try:
-                    result = future.result()
+                    annotations = future.result()
                     await websocket.send_json(
                         WsOutputUnit(
                             id=uid,
-                            annotator=result.annotator,
-                            annotation_type=result.annotation_type,
-                            spans=result.spans,
-                        ).model_dump()
+                            annotator=worker.name,
+                            annotations=annotations,
+                        ).model_dump(by_alias=True)
                     )
                 except Exception as exc:
                     try:

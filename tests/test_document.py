@@ -1,53 +1,94 @@
-"""Tests for Document model behavior."""
+"""Tests for LIF document models."""
 
-from annohub.models import AnnotationResult, Document, Span
-from annohub.routes.annotate import merge_result
-
-
-def test_document_creation():
-    doc = Document(text="hello world")
-    assert doc.text == "hello world"
-    assert doc.meta == {}
-
-
-def test_document_with_meta():
-    doc = Document(text="hello", meta={"lang": "en"})
-    assert doc.meta == {"lang": "en"}
+from annophis_mlhub.lif import (
+    ContainsEntry,
+    LIFAnnotation,
+    LIFDocument,
+    LIFText,
+    LIFView,
+    ViewMetadata,
+)
 
 
-def test_document_extra_fields():
-    doc = Document(
-        text="hello", ner=[{"start": 0, "end": 5, "label": "X", "text": "hello"}]
+def test_lif_document_creation():
+    doc = LIFDocument(text=LIFText(value="hello world"))
+    assert doc.text.value == "hello world"
+    assert doc.views == []
+
+
+def test_lif_document_with_language():
+    doc = LIFDocument(text=LIFText(value="hello", language="lexvo:eng"))
+    assert doc.text.language == "lexvo:eng"
+
+
+def test_lif_document_with_view():
+    doc = LIFDocument(
+        text=LIFText(value="hello"),
+        views=[
+            LIFView(
+                id="v0",
+                metadata=ViewMetadata(
+                    contains={"Token": ContainsEntry(producer="tokenizer")}
+                ),
+                annotations=[LIFAnnotation(id="t0", type="Token", start=0, end=5)],
+            )
+        ],
     )
-    dump = doc.model_dump()
-    assert "ner" in dump
-    assert dump["ner"] == [{"start": 0, "end": 5, "label": "X", "text": "hello"}]
+    assert len(doc.views) == 1
+    assert len(doc.views[0].annotations) == 1
+    assert doc.views[0].annotations[0].type == "Token"
 
 
-def test_merge_result():
-    doc = Document(text="hello world")
-    result = AnnotationResult(
-        annotator="test",
-        annotation_type="ner",
-        spans=[Span(start=0, end=5, label="ENTITY", text="hello")],
+def test_lif_document_json_roundtrip():
+    """Test that serialization with aliases produces valid JSON-LD."""
+    doc = LIFDocument(
+        text=LIFText(value="Fido barks.", language="lexvo:eng"),
+        views=[
+            LIFView(
+                id="v0",
+                annotations=[
+                    LIFAnnotation(
+                        id="t0",
+                        type="Token",
+                        start=0,
+                        end=4,
+                        features={"word": "Fido"},
+                    )
+                ],
+            )
+        ],
     )
-    merged = merge_result(doc, result)
-    assert merged.text == "hello world"
-    dump = merged.model_dump()
-    assert "ner" in dump
-    assert len(dump["ner"]) == 1
-    assert dump["ner"][0]["label"] == "ENTITY"
+    data = doc.model_dump(by_alias=True, exclude_none=True)
+    assert data["text"]["@value"] == "Fido barks."
+    assert data["text"]["@language"] == "lexvo:eng"
+    assert data["views"][0]["annotations"][0]["@type"] == "Token"
+    # Should round-trip back
+    doc2 = LIFDocument.model_validate(data)
+    assert doc2.text.value == doc.text.value
+    assert doc2.views[0].annotations[0].type == "Token"
 
 
-def test_merge_preserves_existing_fields():
-    doc = Document(text="hello", meta={"lang": "en"}, pos=[])
-    result = AnnotationResult(
-        annotator="test",
-        annotation_type="ner",
-        spans=[Span(start=0, end=5, label="X", text="hello")],
-    )
-    merged = merge_result(doc, result)
-    dump = merged.model_dump()
-    assert dump["meta"] == {"lang": "en"}
-    assert dump["pos"] == []
-    assert "ner" in dump
+def test_lif_document_from_json_ld():
+    """Parse a JSON-LD payload (as would come from a client)."""
+    payload = {
+        "@context": "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        "text": {"@value": "Alice met Bob."},
+        "views": [
+            {
+                "id": "v1",
+                "metadata": {
+                    "contains": {
+                        "Sentence": {"producer": "splitter", "type": "splitter"}
+                    }
+                },
+                "annotations": [
+                    {"@type": "Sentence", "id": "s0", "start": 0, "end": 14}
+                ],
+            }
+        ],
+    }
+    doc = LIFDocument.model_validate(payload)
+    assert doc.text.value == "Alice met Bob."
+    assert doc.views[0].id == "v1"
+    assert doc.views[0].annotations[0].type == "Sentence"
+    assert "Sentence" in doc.views[0].metadata.contains

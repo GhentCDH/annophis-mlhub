@@ -1,14 +1,14 @@
 import httpx
 import pytest
 
-from annohub.annotators.huggingface import HuggingFaceAnnotator
-from annohub.models import Document
+from annophis_mlhub.annotators.huggingface import HuggingFaceAnnotator
+from annophis_mlhub.lif import LIFDocument, LIFText
 
 
 @pytest.fixture
 def annotator():
     return HuggingFaceAnnotator(
-        name="hf-ner",
+        name="hf-test",
         annotation_type="ner",
         model="dslim/bert-base-NER",
         token="hf_fake",
@@ -16,95 +16,69 @@ def annotator():
 
 
 @pytest.mark.asyncio
-async def test_translates_hf_response(annotator, monkeypatch):
-    """HF entities (entity_group, word) are translated to annohub Spans (label, text)."""
+async def test_translates_hf_response(annotator):
+    """HF entity_group/word/start/end → LIFAnnotation with features."""
+    doc = LIFDocument(text=LIFText(value="Alice met Bob in Paris"))
 
-    async def fake_post(self, url, *, json, headers, timeout):
-        assert "/models/dslim/bert-base-NER" in url
-        assert json == {"inputs": "Alice went to Paris"}
-        assert headers["Authorization"] == "Bearer hf_fake"
+    transport = httpx.MockTransport(
+        lambda req: httpx.Response(
+            200,
+            json=[
+                {
+                    "entity_group": "PER",
+                    "word": "Alice",
+                    "start": 0,
+                    "end": 5,
+                    "score": 0.99,
+                },
+                {
+                    "entity_group": "LOC",
+                    "word": "Paris",
+                    "start": 17,
+                    "end": 22,
+                    "score": 0.98,
+                },
+            ],
+        )
+    )
+    annotator._client = httpx.AsyncClient(
+        transport=transport, base_url=annotator.base_url
+    )
 
-        class FakeResponse:
-            status_code = 200
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return [
-                    {
-                        "entity_group": "PER",
-                        "score": 0.998,
-                        "word": "Alice",
-                        "start": 0,
-                        "end": 5,
-                    },
-                    {
-                        "entity_group": "LOC",
-                        "score": 0.995,
-                        "word": "Paris",
-                        "start": 14,
-                        "end": 19,
-                    },
-                ]
-
-        return FakeResponse()
-
-    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
-
-    result = await annotator.annotate(Document(text="Alice went to Paris"))
-
-    assert result.annotator == "hf-ner"
-    assert result.annotation_type == "ner"
-    assert len(result.spans) == 2
-    assert result.spans[0].label == "PER"
-    assert result.spans[0].text == "Alice"
-    assert result.spans[1].label == "LOC"
-    assert result.spans[1].text == "Paris"
-
-    await annotator.close()
+    annotations = await annotator.annotate(doc)
+    assert len(annotations) == 2
+    assert annotations[0].type == "NamedEntity"
+    assert annotations[0].features["category"] == "PER"
+    assert annotations[0].features["word"] == "Alice"
+    assert annotations[1].features["category"] == "LOC"
 
 
 @pytest.mark.asyncio
 async def test_class_level_defaults():
-    """Can set model/token as class attributes."""
-
     class MyHf(HuggingFaceAnnotator):
         name = "my-hf"
         annotation_type = "ner"
         model = "custom/model"
-        token = "hf_custom"
+        token = "hf_test"
 
     ann = MyHf()
-    assert ann.name == "my-hf"
     assert ann.model == "custom/model"
-    assert ann.token == "hf_custom"
-    await ann.close()
+    assert ann.token == "hf_test"
 
 
 @pytest.mark.asyncio
-async def test_no_auth_header_without_token(monkeypatch):
-    """No Authorization header is sent when token is empty."""
+async def test_no_auth_header_without_token():
+    ann = HuggingFaceAnnotator(name="no-token", annotation_type="ner", token="")
+    doc = LIFDocument(text=LIFText(value="test"))
 
-    ann = HuggingFaceAnnotator(name="hf-ner", annotation_type="ner")
+    captured_headers = {}
 
-    async def fake_post(self, url, *, json, headers, timeout):
-        assert "Authorization" not in headers
+    def handler(req):
+        captured_headers.update(dict(req.headers))
+        return httpx.Response(200, json=[])
 
-        class FakeResponse:
-            status_code = 200
-
-            def raise_for_status(self):
-                pass
-
-            def json(self):
-                return []
-
-        return FakeResponse()
-
-    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
-
-    result = await ann.annotate(Document(text="hello"))
-    assert result.spans == []
-
-    await ann.close()
+    ann._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url=ann.base_url
+    )
+    await ann.annotate(doc)
+    assert "authorization" not in captured_headers

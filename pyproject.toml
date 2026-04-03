@@ -1,5 +1,5 @@
 [project]
-name = "annohub"
+name = "annophis-mlhub"
 version = "0.2.1"
 description = "Text annotation API"
 readme = "README.md"
@@ -13,13 +13,14 @@ dependencies = [
   "scalar-fastapi>=1.7",
   "rich>=14.3.3",
   "websockets>=13",
+  "pyld>=3.0.0",
 ]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.25", "httpx", "ruff>=0.9"]
 
 [tool.setuptools.packages.find]
-include = ["annohub*"]
+include = ["annophis-mlhub*"]
 
 [tool.pytest.ini_options]
 log_cli = true
@@ -28,4 +29,4 @@ log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
 log_auto_indent = true
 
 [project.scripts]
-annohub = "main:main"
+annophis-mlhub = "main:main"

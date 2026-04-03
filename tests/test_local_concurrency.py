@@ -3,52 +3,42 @@ import time
 
 import pytest
 
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationResult, Document
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument, LIFText
 
 
 class SlowAnnotator(LocalAnnotator):
-    """Annotator that sleeps to simulate slow inference."""
-
     name = "slow"
     annotation_type = "test"
 
-    def __init__(self, delay: float = 0.1, max_concurrency: int = 1):
-        super().__init__(max_concurrency=max_concurrency)
+    def __init__(self, delay: float = 0.05, **kwargs):
+        super().__init__(**kwargs)
         self.delay = delay
 
-    def annotate_sync(self, doc: Document) -> AnnotationResult:
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
         time.sleep(self.delay)
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=[],
-        )
+        return [LIFAnnotation(id="t0", type="Test", start=0, end=1)]
 
 
 @pytest.mark.asyncio
 async def test_semaphore_serializes_access():
-    """With max_concurrency=1, requests should be serialized."""
-    ann = SlowAnnotator(delay=0.05, max_concurrency=1)
-    doc = Document(text="test")
+    ann = SlowAnnotator(max_concurrency=1, delay=0.05)
+    doc = LIFDocument(text=LIFText(value="hello"))
 
     start = time.monotonic()
     await asyncio.gather(*(ann.annotate(doc) for _ in range(3)))
     elapsed = time.monotonic() - start
 
-    # 3 serial calls of 0.05s each = ~0.15s minimum
-    assert elapsed >= 0.12
+    assert elapsed >= 0.15 - 0.02  # 3 × 0.05s, serialized
 
 
 @pytest.mark.asyncio
 async def test_higher_concurrency_is_faster():
-    """With max_concurrency=3, all requests can run in parallel."""
-    ann = SlowAnnotator(delay=0.05, max_concurrency=3)
-    doc = Document(text="test")
+    ann = SlowAnnotator(max_concurrency=3, delay=0.05)
+    doc = LIFDocument(text=LIFText(value="hello"))
 
     start = time.monotonic()
     await asyncio.gather(*(ann.annotate(doc) for _ in range(3)))
     elapsed = time.monotonic() - start
 
-    # 3 parallel calls of 0.05s = ~0.05s, definitely under 0.12s
-    assert elapsed < 0.12
+    assert elapsed < 0.15 - 0.02  # all 3 run in parallel

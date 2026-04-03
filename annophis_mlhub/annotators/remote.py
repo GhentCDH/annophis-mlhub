@@ -1,17 +1,12 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
+from typing import Any
 
 import httpx
 import websockets
 
-from annohub.models import (
-    AnnotationResult,
-    AnnotatorInfo,
-    Contract,
-    Document,
-    WsInputUnit,
-    WsOutputUnit,
-)
+from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
+from annophis_mlhub.models import WsInputUnit, WsOutputUnit
 
 
 class _WsSession:
@@ -21,7 +16,7 @@ class _WsSession:
         self._ws = ws
 
     async def send(self, unit: WsInputUnit) -> None:
-        await self._ws.send(unit.model_dump_json())
+        await self._ws.send(unit.model_dump_json(by_alias=True))
 
     async def __aiter__(self):
         async for message in self._ws:
@@ -35,7 +30,7 @@ class RemoteAnnotator(ABC):
     annotation_type: str = "unknown"
     description: str = ""
     base_url: str = ""
-    contract: Contract
+    lif_contract: LIFContract
 
     def __init__(
         self,
@@ -43,8 +38,11 @@ class RemoteAnnotator(ABC):
         annotation_type: str | None = None,
         base_url: str | None = None,
         description: str | None = None,
-        requires: dict[str, bool] | None = None,
-        produces: list[str] | None = None,
+        requires_language: str | None = None,
+        requires_annotation: list[str] | None = None,
+        requires_feature: list[str] | None = None,
+        produces_annotation: list[str] | None = None,
+        produces_feature: list[str] | None = None,
     ):
         if name is not None:
             self.name = name
@@ -55,9 +53,12 @@ class RemoteAnnotator(ABC):
         if description is not None:
             self.description = description
         self._client: httpx.AsyncClient | None = None
-        self.contract = Contract(
-            requires=requires if requires is not None else {"text": True},  # ty:ignore[invalid-argument-type]
-            produces=produces if produces is not None else [self.annotation_type],
+        self.lif_contract = LIFContract(
+            requires_language=requires_language,
+            requires_annotation=requires_annotation or [],
+            requires_feature=requires_feature or [],
+            produces_annotation=produces_annotation or [],
+            produces_feature=produces_feature or [],
         )
 
     async def get_client(self) -> httpx.AsyncClient:
@@ -66,10 +67,10 @@ class RemoteAnnotator(ABC):
         return self._client
 
     @abstractmethod
-    async def annotate(self, doc: Document) -> AnnotationResult: ...
+    async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]: ...
 
     @abstractmethod
-    async def info(self) -> AnnotatorInfo: ...
+    async def info(self) -> dict[str, Any]: ...
 
     def stream_session(self):
         raise NotImplementedError(
@@ -84,17 +85,17 @@ class RemoteAnnotator(ABC):
 class GenericRemoteAnnotator(RemoteAnnotator):
     """Remote annotator that POSTs to {base_url}/annotate.
 
-    Expects the remote service to speak the standard annohub protocol:
+    Expects the remote service to speak the LIF protocol:
 
-        POST /annotate  {document JSON}
-        -> {"annotator": "...", "annotation_type": "...", "spans": [...]}
+        POST /annotate  {LIFDocument JSON}
+        -> {"annotations": [LIFAnnotation, ...]}
 
     Configured entirely from TOML — no subclassing needed:
 
         [[annotator]]
         name = "remote-ner"
         annotation_type = "ner"
-        class_path = "annohub.annotators.remote.GenericRemoteAnnotator"
+        class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
         base_url = "http://localhost:8001"
     """
 
@@ -103,33 +104,27 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         self.endpoint = endpoint
         self.timeout = timeout
 
-    async def annotate(self, doc: Document) -> AnnotationResult:
+    async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]:
         client = await self.get_client()
         resp = await client.post(
             self.endpoint,
-            json=doc.model_dump(),
+            json=doc.model_dump(by_alias=True),
             timeout=self.timeout,
         )
         resp.raise_for_status()
         data = resp.json()
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=data["spans"],
-        )
+        return [LIFAnnotation.model_validate(a) for a in data["annotations"]]
 
-    async def info(self) -> AnnotatorInfo:
-        client = await self.get_client()
-        resp = await client.get("/info")
-        resp.raise_for_status()
-        data = resp.json()
-        return AnnotatorInfo(
-            name=data["name"],
-            annotation_type=data["annotation_type"],
-            description=data["description"],
-            kind=data["kind"],
-            contract=data.get("contract", {}),
-        )
+    async def info(self) -> dict[str, Any]:
+        from annophis_mlhub.annotators.local import build_descriptor_node
+
+        try:
+            client = await self.get_client()
+            resp = await client.get("/info")
+            resp.raise_for_status()
+            return resp.json()
+        except Exception:
+            return build_descriptor_node(self)
 
     @asynccontextmanager
     async def stream_session(self):

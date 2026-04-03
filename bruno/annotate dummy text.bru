@@ -13,9 +13,15 @@ post {
 body:json {
   {
     "document": {
-      "text": "My name is Neil Peeters and i was born on 25th April 2002. Now, i work at GhentCDH, which is in Ghent.",
-      "meta": {
-        "lang": "en"
+      "@context": [
+        "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        {
+          "lexvo": "http://lexvo.org/id/iso639-3/"
+        }
+      ],
+      "text": {
+        "@value": "My name is Neil Peeters and i was born on 25th April 2002. Now, i work at GhentCDH, which is in Ghent.",
+        "@language": "lexvo:en"
       }
     },
     "annotators": [

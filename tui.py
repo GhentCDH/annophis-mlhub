@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tui.py — interactive annotation TUI for annohub.
+tui.py — interactive annotation TUI for annophis_mlhub.
 
 Connects to a running hub (default http://localhost:8000), lets the user
 build a pipeline of annotators, validates contracts at each step, runs the
@@ -212,7 +212,7 @@ def run_pipeline(base_url: str, text: str, meta: dict, pipeline: list[dict]) -> 
 
 
 def main() -> None:
-    console.rule("[bold blue]annohub[/bold blue]")
+    console.rule("[bold blue]annophis_mlhub[/bold blue]")
     console.print()
 
     # ── fetch annotators ──────────────────────────────────────────────────────

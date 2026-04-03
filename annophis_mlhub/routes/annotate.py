@@ -5,72 +5,56 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from annohub import annotators
-from annohub.annotators.base import Annotator
-from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import (
-    AnnotationResult,
-    Contract,
-    Document,
-    WsInputUnit,
-    WsOutputUnit,
+from annophis_mlhub import annotators
+from annophis_mlhub.annotators.base import Annotator
+from annophis_mlhub.annotators.remote import RemoteAnnotator
+from annophis_mlhub.lif import (
+    ContainsEntry,
+    LIFAnnotation,
+    LIFDocument,
+    LIFView,
+    ViewMetadata,
+    validate_lif_contract,
 )
+from annophis_mlhub.models import WsInputUnit, WsOutputUnit
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 class AnnotateRequest(BaseModel):
-    document: Document
+    model_config = {"populate_by_name": True}
+
+    document: LIFDocument
     annotators: list[str]
 
 
-def _resolve_path(data: dict, path: str):
-    """Resolve a dot-separated path against a nested dict.
-
-    Returns ``(True, value)`` if the path exists, ``(False, None)`` otherwise.
-    """
-    current = data
-    for part in path.split("."):
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-        else:
-            return False, None
-    return True, current
+def _ensure_view(doc: LIFDocument) -> LIFDocument:
+    """Ensure the document has at least one view."""
+    if doc.views:
+        return doc
+    view = LIFView(id="v0", metadata=ViewMetadata(), annotations=[])
+    return doc.model_copy(update={"views": [view]})
 
 
-def validate_contract(doc: Document, contract: Contract) -> list[str]:
-    """Check that all required keys exist (and optionally match) in the document.
-
-    Supports dot-separated paths (e.g. ``meta.lang``) and value constraints:
-    - ``True``  → key must exist
-    - ``"en"``  → key must equal ``"en"``
-    - ``["en", "de"]`` → key must be one of the listed values
-
-    Returns a list of human-readable violation descriptions.
-    """
-    violations: list[str] = []
-    dump = doc.model_dump()
-    for path, constraint in contract.requires.items():
-        found, value = _resolve_path(dump, path)
-        if not found:
-            violations.append(path)
-        elif constraint is not True:
-            if isinstance(constraint, list):
-                if value not in constraint:
-                    violations.append(
-                        f"{path} (expected one of {constraint}, got {value!r})"
-                    )
-            elif value != constraint:
-                violations.append(f"{path} (expected {constraint!r}, got {value!r})")
-    return violations
-
-
-def merge_result(doc: Document, result: AnnotationResult) -> Document:
-    """Create a new Document with the result's spans added under the annotation_type key."""
-    data = doc.model_dump()
-    data[result.annotation_type] = [s.model_dump() for s in result.spans]
-    return Document(**data)
+def _merge_annotations(
+    doc: LIFDocument,
+    annotations: list[LIFAnnotation],
+    producer: str,
+) -> LIFDocument:
+    """Merge annotations into the document's single view."""
+    view = doc.views[0]
+    new_annotations = list(view.annotations) + annotations
+    new_contains = dict(view.metadata.contains)
+    # Add each distinct annotation @type to the contains metadata
+    for ann in annotations:
+        if ann.type not in new_contains:
+            new_contains[ann.type] = ContainsEntry(producer=producer, type=ann.type)
+    new_metadata = ViewMetadata(contains=new_contains)
+    new_view = view.model_copy(
+        update={"annotations": new_annotations, "metadata": new_metadata}
+    )
+    return doc.model_copy(update={"views": [new_view]})
 
 
 async def _is_available(a) -> bool:
@@ -85,11 +69,11 @@ async def _is_available(a) -> bool:
         return False
 
 
-@router.post("/annotate", response_model=Document)
-async def annotate(request: AnnotateRequest) -> Document:
-    """Annotate a document through a sequential pipeline of annotators."""
+@router.post("/annotate")
+async def annotate(request: AnnotateRequest):
+    """Annotate a LIF document through a sequential pipeline of annotators."""
     all_annotators = annotators.all()
-    doc = request.document
+    doc = _ensure_view(request.document)
 
     for name in request.annotators:
         ann = all_annotators.get(name)
@@ -98,16 +82,16 @@ async def annotate(request: AnnotateRequest) -> Document:
         if not await _is_available(ann):
             raise HTTPException(503, f"Annotator {name!r} is not available")
 
-        missing = validate_contract(doc, ann.contract)
-        if missing:
+        violations = validate_lif_contract(doc, ann.lif_contract)
+        if violations:
             raise HTTPException(
-                422, f"Annotator {name!r} requires missing keys: {missing}"
+                422, f"Annotator {name!r} contract violations: {violations}"
             )
 
-        result = await ann.annotate(doc)
-        doc = merge_result(doc, result)
+        annotations = await ann.annotate(doc)
+        doc = _merge_annotations(doc, annotations, ann.name)
 
-    return doc
+    return doc.model_dump(by_alias=True, exclude_none=True)
 
 
 @router.websocket("/annotate")
@@ -149,13 +133,12 @@ async def ws_annotate_hub(
 
     async def annotate_local(ann: Annotator, unit: WsInputUnit) -> None:
         try:
-            result = await ann.annotate(unit.document)
+            annotations = await ann.annotate(unit.document)
             await result_queue.put(
                 WsOutputUnit(
                     id=unit.id,
-                    annotator=result.annotator,
-                    annotation_type=result.annotation_type,
-                    spans=result.spans,
+                    annotator=ann.name,
+                    annotations=annotations,
                 )
             )
         except Exception:
@@ -171,7 +154,7 @@ async def ws_annotate_hub(
             if item is None:
                 break
             try:
-                await websocket.send_json(item.model_dump())
+                await websocket.send_json(item.model_dump(by_alias=True))
             except Exception:
                 pass
 

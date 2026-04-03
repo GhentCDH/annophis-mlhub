@@ -1,40 +1,28 @@
 """RemoteAnnotator that translates HuggingFace Inference API responses.
 
 The HF Inference API has its own schema — this annotator demonstrates
-translating a foreign API into annohub's internal model.
+translating a foreign API into LIF annotations.
 
-Usage in annohub.toml:
+Usage in mlhub.toml:
 
     [[annotator]]
     name = "hf-ner"
     annotation_type = "ner"
-    class_path = "annohub.annotators.huggingface.HuggingFaceAnnotator"
+    class_path = "annophis_mlhub.annotators.huggingface.HuggingFaceAnnotator"
     base_url = "https://router.huggingface.co"
     model = "dslim/bert-base-NER"
     token = "hf_..."
-
-Or with class-level defaults:
-
-    class MyHfAnnotator(HuggingFaceAnnotator):
-        name = "hf-ner"
-        annotation_type = "ner"
-        model = "dslim/bert-base-NER"
-        token = "hf_..."
 """
 
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from typing import Any
 
-from annohub.annotators.remote import RemoteAnnotator
-from annohub.models import (
-    AnnotationResult,
-    AnnotatorInfo,
-    Document,
-    Span,
-    WsInputUnit,
-    WsOutputUnit,
-)
+from annophis_mlhub.annotators.local import build_descriptor_node
+from annophis_mlhub.annotators.remote import RemoteAnnotator
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
+from annophis_mlhub.models import WsInputUnit, WsOutputUnit
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +41,12 @@ class _HfSession:
         task.add_done_callback(self._tasks.discard)
 
     async def _process(self, unit: WsInputUnit) -> None:
-        result = await self._annotator.annotate(unit.document)
+        annotations = await self._annotator.annotate(unit.document)
         await self._queue.put(
             WsOutputUnit(
                 id=unit.id,
-                annotator=result.annotator,
-                annotation_type=result.annotation_type,
-                spans=result.spans,
+                annotator=self._annotator.name,
+                annotations=annotations,
             )
         )
 
@@ -83,9 +70,10 @@ class HuggingFaceAnnotator(RemoteAnnotator):
 
         [{"entity_group": "PER", "word": "Alice", "start": 0, "end": 5, "score": 0.99}]
 
-    into annohub Spans::
+    into LIF annotations::
 
-        [{"label": "PER", "text": "Alice", "start": 0, "end": 5}]
+        [{"@type": "NamedEntity", "id": "ne0", "start": 0, "end": 5,
+          "features": {"category": "PER", "word": "Alice"}}]
     """
 
     description: str = "HuggingFace Inference API NER model."
@@ -100,36 +88,35 @@ class HuggingFaceAnnotator(RemoteAnnotator):
         if token is not None:
             self.token = token
 
-    async def annotate(self, doc: Document) -> AnnotationResult:
+    async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]:
         client = await self.get_client()
         headers = {}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
+        text = doc.text.value
         resp = await client.post(
             f"/models/{self.model}",
-            json={"inputs": doc.text},
+            json={"inputs": text},
             headers=headers,
             timeout=30.0,
         )
         resp.raise_for_status()
         entities = resp.json()
 
-        spans = [
-            Span(
+        return [
+            LIFAnnotation(
+                id=f"ne{i}",
+                type="NamedEntity",
                 start=e["start"],
                 end=e["end"],
-                label=e["entity_group"],
-                text=doc.text[e["start"] : e["end"]],
+                features={
+                    "category": e["entity_group"],
+                    "word": text[e["start"] : e["end"]],
+                },
             )
-            for e in entities
+            for i, e in enumerate(entities)
         ]
-
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=spans,
-        )
 
     @asynccontextmanager
     async def stream_session(self):
@@ -139,11 +126,5 @@ class HuggingFaceAnnotator(RemoteAnnotator):
         finally:
             await session._close()
 
-    async def info(self) -> AnnotatorInfo:
-        return AnnotatorInfo(
-            name=self.name,
-            annotation_type=self.annotation_type,
-            kind="remote",
-            description=self.description,
-            contract=self.contract,
-        )
+    async def info(self) -> dict[str, Any]:
+        return build_descriptor_node(self)

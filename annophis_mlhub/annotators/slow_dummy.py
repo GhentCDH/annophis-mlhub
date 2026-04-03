@@ -1,8 +1,8 @@
 import re
 import time
 
-from annohub.annotators.local import LocalAnnotator
-from annohub.models import AnnotationResult, Document, Span
+from annophis_mlhub.annotators.local import LocalAnnotator
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 
 
 class SlowDummyAnnotator(LocalAnnotator):
@@ -24,21 +24,25 @@ class SlowDummyAnnotator(LocalAnnotator):
                     "name",
                     "annotation_type",
                     "max_concurrency",
-                    "requires",
-                    "produces",
+                    "requires_language",
+                    "requires_annotation",
+                    "requires_feature",
+                    "produces_annotation",
+                    "produces_feature",
                 )
             }
         )
         self.delay = delay
 
-    def annotate_sync(self, doc: Document) -> AnnotationResult:
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
         time.sleep(self.delay)
-        spans = [
-            Span(start=m.start(), end=m.end(), label="ENTITY", text=m.group())
-            for m in re.finditer(r"\b[A-Z][a-z]+\b", doc.text)
+        return [
+            LIFAnnotation(
+                id=f"ne{i}",
+                type="NamedEntity",
+                start=m.start(),
+                end=m.end(),
+                features={"category": "ENTITY", "word": m.group()},
+            )
+            for i, m in enumerate(re.finditer(r"\b[A-Z][a-z]+\b", doc.text.value))
         ]
-        return AnnotationResult(
-            annotator=self.name,
-            annotation_type=self.annotation_type,
-            spans=spans,
-        )

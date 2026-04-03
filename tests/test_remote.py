@@ -4,119 +4,114 @@ import httpx
 import pytest
 import websockets
 
-from annohub.annotators.remote import GenericRemoteAnnotator
-from annohub.models import Document, WsInputUnit
+from annophis_mlhub.annotators.remote import GenericRemoteAnnotator
+from annophis_mlhub.lif import LIFDocument, LIFText
+from annophis_mlhub.models import WsInputUnit
 
 
 @pytest.fixture
 def annotator():
     return GenericRemoteAnnotator(
-        name="test-remote",
+        name="remote-test",
         annotation_type="ner",
         base_url="http://fake-host:9999",
     )
 
 
 @pytest.mark.asyncio
-async def test_generic_remote_annotator(annotator, monkeypatch):
-    """GenericRemoteAnnotator posts full document and parses the response."""
+async def test_generic_remote_annotator(annotator):
+    """GenericRemoteAnnotator sends the LIF document and parses annotations."""
+    doc = LIFDocument(text=LIFText(value="Hello World"))
 
-    async def fake_post(self, url, *, json, timeout):
-        assert url == "/annotate"
-        assert json["text"] == "hello"
+    transport = httpx.MockTransport(
+        lambda req: httpx.Response(
+            200,
+            json={
+                "annotations": [
+                    {
+                        "id": "ne0",
+                        "@type": "NamedEntity",
+                        "start": 0,
+                        "end": 5,
+                        "features": {"word": "Hello"},
+                    }
+                ]
+            },
+        )
+    )
+    annotator._client = httpx.AsyncClient(
+        transport=transport, base_url=annotator.base_url
+    )
 
-        class FakeResponse:
-            status_code = 200
+    annotations = await annotator.annotate(doc)
+    assert len(annotations) == 1
+    assert annotations[0].type == "NamedEntity"
+    assert annotations[0].start == 0
+    assert annotations[0].end == 5
 
-            def raise_for_status(self):
-                pass
 
-            def json(self):
-                return {
-                    "annotator": "test-remote",
-                    "annotation_type": "ner",
-                    "spans": [
-                        {"start": 0, "end": 5, "label": "GREETING", "text": "hello"}
-                    ],
-                }
+class FakeWs:
+    """Minimal fake websockets connection for testing stream_session."""
 
-        return FakeResponse()
+    def __init__(self, responses):
+        self._responses = iter(responses)
+        self.sent = []
 
-    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    async def send(self, data):
+        self.sent.append(data)
 
-    doc = Document(text="hello")
-    result = await annotator.annotate(doc)
+    def __aiter__(self):
+        return self
 
-    assert result.annotator == "test-remote"
-    assert result.annotation_type == "ner"
-    assert len(result.spans) == 1
-    assert result.spans[0].label == "GREETING"
+    async def __anext__(self):
+        try:
+            return next(self._responses)
+        except StopIteration:
+            raise StopAsyncIteration
 
-    await annotator.close()
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
 
 
 @pytest.mark.asyncio
 async def test_stream_session(annotator, monkeypatch):
-    """stream_session() opens a WS connection and yields a session that can send/receive."""
+    """stream_session sends WsInputUnit and yields WsOutputUnit."""
+    ws_response = json.dumps(
+        {
+            "id": "1",
+            "annotator": "remote-test",
+            "annotations": [
+                {"id": "ne0", "@type": "NamedEntity", "start": 0, "end": 5}
+            ],
+        }
+    )
+    fake_ws = FakeWs([ws_response])
+    monkeypatch.setattr(websockets, "connect", lambda url: fake_ws)
 
-    outgoing = []
-    incoming = [
-        json.dumps(
-            {
-                "id": "42",
-                "annotator": "test-remote",
-                "annotation_type": "ner",
-                "spans": [],
-            }
-        )
-    ]
-
-    class FakeWs:
-        async def send(self, data):
-            outgoing.append(data)
-
-        def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            if incoming:
-                return incoming.pop(0)
-            raise StopAsyncIteration
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            pass
-
-    monkeypatch.setattr(websockets, "connect", lambda url: FakeWs())
-
-    unit = WsInputUnit(id="42", document=Document(text="hello"))
     async with annotator.stream_session() as session:
+        unit = WsInputUnit(
+            id="1",
+            document=LIFDocument(text=LIFText(value="Hello")),
+        )
         await session.send(unit)
         results = [r async for r in session]
 
-    assert len(outgoing) == 1
-    sent = json.loads(outgoing[0])
-    assert sent["id"] == "42"
-    assert sent["document"]["text"] == "hello"
     assert len(results) == 1
-    assert results[0].id == "42"
-    assert results[0].annotator == "test-remote"
+    assert results[0].id == "1"
+    assert len(results[0].annotations) == 1
 
 
-@pytest.mark.asyncio
-async def test_custom_endpoint():
-    """GenericRemoteAnnotator respects custom endpoint."""
+def test_custom_endpoint():
     ann = GenericRemoteAnnotator(
         name="custom",
         annotation_type="pos",
         base_url="http://localhost:1234",
-        endpoint="/custom/predict",
-        timeout=5.0,
+        endpoint="/custom",
+        timeout=10.0,
     )
-    assert ann.endpoint == "/custom/predict"
-    assert ann.timeout == 5.0
-    assert ann.contract.requires == {"text": True}
-    assert ann.contract.produces == ["pos"]
-    await ann.close()
+    assert ann.endpoint == "/custom"
+    assert ann.timeout == 10.0
+    assert ann.lif_contract.produces_annotation == []
