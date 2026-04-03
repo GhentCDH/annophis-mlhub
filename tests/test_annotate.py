@@ -35,7 +35,9 @@ def test_health(client):
 def test_list_annotators_empty(client):
     resp = client.get("/annotators")
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert "@context" in data
+    assert data["@graph"] == []
 
 
 def test_list_annotators_with_dummy(client):
@@ -43,10 +45,11 @@ def test_list_annotators_with_dummy(client):
     resp = client.get("/annotators")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["annophis_mlhub:name"] == "dummy"
-    assert data[0]["@type"] == "annophis_mlhub:Annotator"
-    assert "@context" in data[0]
+    assert "@context" in data
+    graph = data["@graph"]
+    assert len(graph) == 1
+    assert graph[0]["rdfs:label"] == "dummy"
+    assert graph[0]["@type"] == "annophis_mlhub:Annotator"
 
 
 def test_annotate_no_annotators(client):
@@ -108,7 +111,7 @@ def test_dummy_ner_from_config(_use_real_config, client):
     """Test the dummy-ner annotator loaded from mlhub.toml."""
     resp = client.get("/annotators")
     data = resp.json()
-    names = [a.get("annophis_mlhub:name") for a in data]
+    names = [a.get("rdfs:label") for a in data["@graph"]]
     assert "dummy-ner" in names
 
     resp = client.post(

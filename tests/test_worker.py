@@ -52,7 +52,7 @@ def test_worker_health(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["annophis_mlhub:name"] == "upper"
+    assert data["rdfs:label"] == "upper"
     assert data["status"] == "ok"
 
 
@@ -60,7 +60,7 @@ def test_worker_info(client):
     resp = client.get("/info")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["annophis_mlhub:name"] == "upper"
+    assert data["rdfs:label"] == "upper"
     assert data["@type"] == "annophis_mlhub:Annotator"
 
 

@@ -7,14 +7,17 @@ from fastapi.responses import JSONResponse
 
 from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator
+from annophis_mlhub.annotators.local import (
+    build_descriptor_context,
+)
 from annophis_mlhub.models import Health
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _annotator_info(a: Annotator) -> dict[str, Any] | None:
-    """Get JSON-LD descriptor for an annotator, or None if unavailable."""
+async def _annotator_node(a: Annotator) -> dict[str, Any] | None:
+    """Get JSON-LD graph node for an annotator, or None if unavailable."""
     try:
         return await a.info()
     except Exception as e:
@@ -30,12 +33,16 @@ async def health():
 
 @router.get("/annotators")
 async def list_annotators():
-    """List all available annotators as JSON-LD descriptors"""
-    infos = await asyncio.gather(
-        *(_annotator_info(a) for a in annotators.all().values())
+    """List all available annotators as a JSON-LD graph"""
+    nodes = await asyncio.gather(
+        *(_annotator_node(a) for a in annotators.all().values())
     )
-    result = [i for i in infos if i is not None]
-    return JSONResponse(content=result, media_type="application/ld+json")
+    graph = [n for n in nodes if n is not None]
+    doc = {
+        "@context": build_descriptor_context(),
+        "@graph": graph,
+    }
+    return JSONResponse(content=doc, media_type="application/ld+json")
 
 
 @router.get("/annotators/{name}")
@@ -44,7 +51,11 @@ async def get_annotator(name: str):
     a = annotators.get(name)
     if a is None:
         raise HTTPException(404, f"Unknown annotator: {name}")
-    info = await _annotator_info(a)
-    if info is None:
+    node = await _annotator_node(a)
+    if node is None:
         raise HTTPException(503, f"Annotator {name!r} is not available")
-    return JSONResponse(content=info, media_type="application/ld+json")
+    doc = {
+        "@context": build_descriptor_context(),
+        **node,
+    }
+    return JSONResponse(content=doc, media_type="application/ld+json")

@@ -18,7 +18,6 @@ def _build() -> dict:
             "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
             "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
             "dcterms": "http://purl.org/dc/terms/",
-            "xsd": "http://www.w3.org/2001/XMLSchema#",
         },
         "@graph": [
             {
@@ -39,25 +38,6 @@ def _build() -> dict:
                     "An NLP annotation service that accepts a text document "
                     "and produces annotations."
                 ),
-            },
-            # ── Datatype properties ───────────────────────────────────────────
-            {
-                "@id": "annophis_mlhub:name",
-                "@type": "owl:DatatypeProperty",
-                "rdfs:label": "name",
-                "rdfs:comment": "The short identifier of an annotator.",
-                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
-                "rdfs:range": {"@id": "xsd:string"},
-            },
-            {
-                "@id": "annophis_mlhub:description",
-                "@type": "owl:DatatypeProperty",
-                "rdfs:label": "description",
-                "rdfs:comment": (
-                    "A human-readable description of what the annotator does."
-                ),
-                "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
-                "rdfs:range": {"@id": "xsd:string"},
             },
             # ── Object properties ─────────────────────────────────────────────
             {

@@ -19,7 +19,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from annophis_mlhub.annotators.local import _build_descriptor
+from annophis_mlhub.annotators.local import (
+    build_descriptor_context,
+    build_descriptor_node,
+)
 from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.models import WsInputUnit, WsOutputUnit
 from annophis_mlhub.worker.base import ModelWorker
@@ -78,13 +81,13 @@ def create_worker_app(
 
     @app.get("/health")
     async def health():
-        desc = _build_descriptor(worker)
+        desc = {**build_descriptor_node(worker), "@context": build_descriptor_context()}
         desc["status"] = "ok"
         return desc
 
     @app.get("/info")
     async def info():
-        return _build_descriptor(worker)
+        return {**build_descriptor_node(worker), "@context": build_descriptor_context()}
 
     @app.post("/annotate")
     async def annotate(doc: LIFDocument):

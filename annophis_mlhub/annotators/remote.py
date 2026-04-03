@@ -116,7 +116,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         return [LIFAnnotation.model_validate(a) for a in data["annotations"]]
 
     async def info(self) -> dict[str, Any]:
-        from annophis_mlhub.annotators.local import _build_descriptor
+        from annophis_mlhub.annotators.local import build_descriptor_node
 
         try:
             client = await self.get_client()
@@ -124,7 +124,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             resp.raise_for_status()
             return resp.json()
         except Exception:
-            return _build_descriptor(self)
+            return build_descriptor_node(self)
 
     @asynccontextmanager
     async def stream_session(self):

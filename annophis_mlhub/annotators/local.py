@@ -54,7 +54,7 @@ class LocalAnnotator(ABC):
 
     def info_sync(self) -> dict[str, Any]:
         """Return JSON-LD descriptor for this annotator. Override to customise."""
-        return _build_descriptor(self)
+        return build_descriptor_node(self)
 
     async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]:
         async with self._semaphore:
@@ -64,45 +64,50 @@ class LocalAnnotator(ABC):
         return self.info_sync()
 
 
-def _build_descriptor(annotator: Any) -> dict[str, Any]:
-    """Build a JSON-LD annotator descriptor from an annotator's lif_contract."""
+def build_descriptor_context() -> list:
+    """Return the shared ``@context`` for annotator descriptors."""
     from annophis_mlhub.config import settings
 
     vocab_ns = settings.vocab_base_url.rstrip("/") + "/"
     vocab_url = settings.base_url.rstrip("/") + "/vocab"
-    desc: dict[str, Any] = {
-        "@context": [
-            vocab_url,
-            {
-                "annophis_mlhub": vocab_ns,
-                "lapps": "http://vocab.lappsgrid.org/",
-                "dcterms": "http://purl.org/dc/terms/",
-                "lexvo": "http://lexvo.org/id/iso639-3/",
-            },
-        ],
+    return [
+        vocab_url,
+        {
+            "annophis_mlhub": vocab_ns,
+            "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+            "lapps": "http://vocab.lappsgrid.org/",
+            "dcterms": "http://purl.org/dc/terms/",
+            "lexvo": "http://lexvo.org/id/iso639-3/",
+        },
+    ]
+
+
+def build_descriptor_node(annotator: Any) -> dict[str, Any]:
+    """Build a JSON-LD graph node for an annotator (no ``@context``)."""
+    node: dict[str, Any] = {
         "@type": "annophis_mlhub:Annotator",
-        "annophis_mlhub:name": annotator.name,
-        "annophis_mlhub:description": annotator.description,
+        "rdfs:label": annotator.name,
+        "dcterms:description": annotator.description,
     }
 
     contract: LIFContract = annotator.lif_contract
     if contract.requires_language:
-        desc["annophis_mlhub:requiresLanguage"] = {"@id": contract.requires_language}
+        node["annophis_mlhub:requiresLanguage"] = {"@id": contract.requires_language}
     if contract.requires_annotation:
-        desc["annophis_mlhub:requiresAnnotation"] = [
+        node["annophis_mlhub:requiresAnnotation"] = [
             {"@id": t} for t in contract.requires_annotation
         ]
     if contract.requires_feature:
-        desc["annophis_mlhub:requiresFeature"] = [
+        node["annophis_mlhub:requiresFeature"] = [
             {"@id": f} for f in contract.requires_feature
         ]
     if contract.produces_annotation:
-        desc["annophis_mlhub:producesAnnotation"] = [
+        node["annophis_mlhub:producesAnnotation"] = [
             {"@id": t} for t in contract.produces_annotation
         ]
     if contract.produces_feature:
-        desc["annophis_mlhub:producesFeature"] = [
+        node["annophis_mlhub:producesFeature"] = [
             {"@id": f} for f in contract.produces_feature
         ]
 
-    return desc
+    return node
