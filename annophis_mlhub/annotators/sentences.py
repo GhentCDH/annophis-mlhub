@@ -63,11 +63,7 @@ class SentenceCountAnnotator(LocalAnnotator):
         super().__init__(**kwargs)
 
     def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
-        count = 0
-        for view in doc.views:
-            for ann in view.annotations:
-                if ann.type == "Sentence":
-                    count += 1
+        count = sum(1 for _ in doc.sentences())
 
         return [
             LIFAnnotation(

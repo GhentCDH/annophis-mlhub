@@ -92,3 +92,82 @@ def test_lif_document_from_json_ld():
     assert doc.views[0].id == "v1"
     assert doc.views[0].annotations[0].type == "Sentence"
     assert "Sentence" in doc.views[0].metadata.contains
+
+
+# ── Convenience accessor tests ───────────────────────────────────────────
+
+
+def _doc_with_annotations():
+    return LIFDocument(
+        text=LIFText(value="Alice met Bob."),
+        views=[
+            LIFView(
+                id="v0",
+                annotations=[
+                    LIFAnnotation(id="s0", type="Sentence", start=0, end=14),
+                    LIFAnnotation(
+                        id="t0",
+                        type="Token",
+                        start=0,
+                        end=5,
+                        features={"word": "Alice"},
+                    ),
+                    LIFAnnotation(
+                        id="t1", type="Token", start=6, end=9, features={"word": "met"}
+                    ),
+                    LIFAnnotation(
+                        id="t2",
+                        type="Token",
+                        start=10,
+                        end=13,
+                        features={"word": "Bob"},
+                    ),
+                    LIFAnnotation(
+                        id="ne0",
+                        type="NamedEntity",
+                        start=0,
+                        end=5,
+                        features={"category": "PER"},
+                    ),
+                ],
+            )
+        ],
+    )
+
+
+def test_annotations_by_type():
+    doc = _doc_with_annotations()
+    tokens = list(doc.annotations("Token"))
+    assert len(tokens) == 3
+    assert all(a.type == "Token" for a in tokens)
+
+
+def test_spans():
+    doc = _doc_with_annotations()
+    assert list(doc.spans("Token")) == [(0, 5), (6, 9), (10, 13)]
+
+
+def test_span_texts():
+    doc = _doc_with_annotations()
+    assert list(doc.span_texts("Token")) == ["Alice", "met", "Bob"]
+
+
+def test_sentences():
+    doc = _doc_with_annotations()
+    assert list(doc.sentences()) == [(0, 14)]
+
+
+def test_tokens():
+    doc = _doc_with_annotations()
+    assert list(doc.tokens()) == [(0, 5), (6, 9), (10, 13)]
+
+
+def test_annotations_empty_views():
+    doc = LIFDocument(text=LIFText(value="hello"))
+    assert list(doc.annotations("Token")) == []
+    assert list(doc.sentences()) == []
+
+
+def test_annotations_no_match():
+    doc = _doc_with_annotations()
+    assert list(doc.annotations("Dependency")) == []

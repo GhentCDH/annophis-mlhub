@@ -6,6 +6,7 @@ plus contract validation using pyld for CURIE expansion.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -76,6 +77,38 @@ class LIFDocument(BaseModel):
     text: LIFText
     metadata: dict[str, Any] = {}
     views: list[LIFView] = []
+
+    # ── Convenience accessors ───────────────────────────────────────────
+
+    def annotations(
+        self, annotation_type: str, view: int = 0
+    ) -> Iterator[LIFAnnotation]:
+        """Yield all annotations of the given type from a view."""
+        if view >= len(self.views):
+            return
+        for ann in self.views[view].annotations:
+            if ann.type == annotation_type:
+                yield ann
+
+    def spans(self, annotation_type: str, view: int = 0) -> Iterator[tuple[int, int]]:
+        """Yield ``(start, end)`` pairs for annotations of the given type."""
+        for ann in self.annotations(annotation_type, view):
+            if ann.start is not None and ann.end is not None:
+                yield ann.start, ann.end
+
+    def span_texts(self, annotation_type: str, view: int = 0) -> Iterator[str]:
+        """Yield the text covered by each annotation of the given type."""
+        text = self.text.value
+        for start, end in self.spans(annotation_type, view):
+            yield text[start:end]
+
+    def sentences(self, view: int = 0) -> Iterator[tuple[int, int]]:
+        """Yield ``(start, end)`` pairs for Sentence annotations."""
+        return self.spans("Sentence", view)
+
+    def tokens(self, view: int = 0) -> Iterator[tuple[int, int]]:
+        """Yield ``(start, end)`` pairs for Token annotations."""
+        return self.spans("Token", view)
 
 
 # ── Contract ─────────────────────────────────────────────────────────────────
