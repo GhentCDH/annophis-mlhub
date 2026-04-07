@@ -29,10 +29,10 @@ from annophis_mlhub.worker.base import ModelWorker
 
 
 class _QueueItem:
-    __slots__ = ("text", "future")
+    __slots__ = ("doc", "future")
 
-    def __init__(self, text: str, future: asyncio.Future[list[LIFAnnotation]]):
-        self.text = text
+    def __init__(self, doc: LIFDocument, future: asyncio.Future[list[LIFAnnotation]]):
+        self.doc = doc
         self.future = future
 
 
@@ -57,7 +57,7 @@ def create_worker_app(
             if item is None:
                 break
             try:
-                annotations = await asyncio.to_thread(worker.predict, item.text)
+                annotations = await asyncio.to_thread(worker.predict, item.doc)
                 item.future.set_result(annotations)
             except Exception as exc:
                 item.future.set_exception(exc)
@@ -93,7 +93,7 @@ def create_worker_app(
     async def annotate(doc: LIFDocument):
         loop = asyncio.get_running_loop()
         future: asyncio.Future[list[LIFAnnotation]] = loop.create_future()
-        await queue.put(_QueueItem(text=doc.text.value, future=future))
+        await queue.put(_QueueItem(doc=doc, future=future))
         annotations = await future
         return {"annotations": [a.model_dump(by_alias=True) for a in annotations]}
 
@@ -112,9 +112,7 @@ def create_worker_app(
                     future.add_done_callback(
                         lambda f, uid=unit.id: result_queue.put_nowait((uid, f))
                     )
-                    await queue.put(
-                        _QueueItem(text=unit.document.text.value, future=future)
-                    )
+                    await queue.put(_QueueItem(doc=unit.document, future=future))
             except WebSocketDisconnect:
                 pass
             finally:

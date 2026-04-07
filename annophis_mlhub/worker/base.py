@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
-from annophis_mlhub.lif import LIFAnnotation, LIFContract
+from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
 
 
 class ModelWorker(ABC):
@@ -9,7 +11,7 @@ class ModelWorker(ABC):
     Subclasses implement two methods:
 
     - ``load()``  — called once at startup to load model weights, etc.
-    - ``predict(text)`` — synchronous inference, returns a list of LIFAnnotations.
+    - ``predict(doc)`` — synchronous inference, returns a list of LIFAnnotations.
 
     The worker harness handles the rest: FastAPI app, health endpoint,
     internal queue, and background worker thread.
@@ -35,6 +37,11 @@ class ModelWorker(ABC):
         ...
 
     @abstractmethod
-    def predict(self, text: str) -> list[LIFAnnotation]:
-        """Run inference on text.  Called from a worker thread."""
+    def predict(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        """Run inference on a LIF document.  Called from a worker thread.
+
+        The full document is provided so that implementations can access
+        prior annotations in ``doc.views`` (e.g. sentence boundaries) as
+        well as the raw text via ``doc.text.value``.
+        """
         ...

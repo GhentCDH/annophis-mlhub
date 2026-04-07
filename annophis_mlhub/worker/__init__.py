@@ -3,14 +3,15 @@
 Usage::
 
     from annophis_mlhub.worker import ModelWorker, LIFAnnotation
+    from annophis_mlhub.lif import LIFDocument
 
     class MyModel(ModelWorker):
         def load(self):
             import spacy
             self.nlp = spacy.load("en_core_web_sm")
 
-        def predict(self, text: str) -> list[LIFAnnotation]:
-            doc = self.nlp(text)
+        def predict(self, doc: LIFDocument) -> list[LIFAnnotation]:
+            result = self.nlp(doc.text.value)
             return [
                 LIFAnnotation(
                     id=f"ne{i}",
@@ -19,7 +20,7 @@ Usage::
                     end=ent.end_char,
                     features={"word": ent.text},
                 )
-                for i, ent in enumerate(doc.ents)
+                for i, ent in enumerate(result.ents)
             ]
 
 Then run::

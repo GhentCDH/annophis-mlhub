@@ -246,7 +246,7 @@ Use the worker harness to turn any ML model into a valid remote annotator:
 
 ```python
 from annophis_mlhub.worker import ModelWorker
-from annophis_mlhub.lif import LIFAnnotation
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 
 class MyModel(ModelWorker):
     name = "my-ner"
@@ -256,8 +256,10 @@ class MyModel(ModelWorker):
     def load(self) -> None:
         self.model = ...  # load weights once at startup
 
-    def predict(self, text: str) -> list[LIFAnnotation]:
+    def predict(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        text = doc.text.value
         # synchronous inference; runs in a background thread
+        # access prior annotations via doc.views if needed
         return [
             LIFAnnotation(
                 id="ne0",

@@ -3,7 +3,7 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
-from annophis_mlhub.lif import LIFAnnotation
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.worker import ModelWorker, create_worker_app
 
 
@@ -16,7 +16,8 @@ class UpperCaseWorker(ModelWorker):
     def load(self):
         self.loaded = True
 
-    def predict(self, text: str) -> list[LIFAnnotation]:
+    def predict(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        text = doc.text.value
         return [
             LIFAnnotation(
                 id=f"u{i}",

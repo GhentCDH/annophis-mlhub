@@ -10,7 +10,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from annophis_mlhub.lif import LIFAnnotation
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.worker import ModelWorker, create_worker_app
 
 DELAY = 0.10
@@ -25,9 +25,9 @@ class SlowWorker(ModelWorker):
     def load(self):
         pass
 
-    def predict(self, text: str) -> list[LIFAnnotation]:
+    def predict(self, doc: LIFDocument) -> list[LIFAnnotation]:
         time.sleep(DELAY)
-        return [LIFAnnotation(id="t0", type="Test", start=0, end=len(text))]
+        return [LIFAnnotation(id="t0", type="Test", start=0, end=len(doc.text.value))]
 
 
 def _lif_json(text="hello"):
