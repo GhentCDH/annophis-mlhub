@@ -41,6 +41,7 @@ def _merge_annotations(
     doc: LIFDocument,
     annotations: list[LIFAnnotation],
     producer: str,
+    produces_feature: list[str] | None = None,
 ) -> LIFDocument:
     """Merge annotations into the document's single view.
 
@@ -51,6 +52,10 @@ def _merge_annotations(
     a ``pos`` feature to existing Token annotations).
 
     Annotations with new ids are appended as usual.
+
+    ``produces_feature`` entries (e.g. ``["lapps:Token#pos"]``) are
+    recorded in ``metadata.contains`` so downstream annotators can
+    check for them via contract validation.
     """
     view = doc.views[0]
 
@@ -75,6 +80,9 @@ def _merge_annotations(
     for ann in annotations:
         if ann.type not in new_contains:
             new_contains[ann.type] = ContainsEntry(producer=producer, type=ann.type)
+    for feat in produces_feature or []:
+        if feat not in new_contains:
+            new_contains[feat] = ContainsEntry(producer=producer, type=feat)
     new_metadata = ViewMetadata(contains=new_contains)
     new_view = view.model_copy(update={"annotations": merged, "metadata": new_metadata})
     return doc.model_copy(update={"views": [new_view]})
@@ -112,7 +120,9 @@ async def annotate(request: AnnotateRequest):
             )
 
         annotations = await ann.annotate(doc)
-        doc = _merge_annotations(doc, annotations, ann.name)
+        doc = _merge_annotations(
+            doc, annotations, ann.name, ann.lif_contract.produces_feature
+        )
 
     return doc.model_dump(by_alias=True, exclude_none=True)
 

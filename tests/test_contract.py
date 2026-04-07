@@ -280,3 +280,7 @@ class TestFeatureMerging:
             # Original word feature preserved, pos feature added
             assert "word" in ann["features"]
             assert ann["features"]["pos"] == "NN"
+        # contains should record both Token and Token#pos
+        contains = view["metadata"]["contains"]
+        assert "Token" in contains
+        assert "lapps:Token#pos" in contains

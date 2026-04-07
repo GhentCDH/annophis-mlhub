@@ -12,8 +12,23 @@ post {
 
 body:json {
   {
-    "text": "πῆναξ σὺν θεῶ ἁγ(ίας) τῆς βίβλου ταύτης",
-    "annotator": "colinmodel"
+    "document": {
+      "@context": [
+        "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        {
+          "lexvo": "http://lexvo.org/id/iso639-3/"
+        }
+      ],
+      "text": {
+        "@value": "πῆναξ σὺν θεῶ ἁγ(ίας) τῆς βίβλου ταύτης. πῆναξ σὺν θεῶ ἁγ(ίας) τῆς βίβλου ταύτης",
+        "@language": "lexvo:grc"
+      }
+    },
+    "annotators": [
+      "sentence-split",
+      "sentence-count",
+      "colinmodel"
+    ]
   }
 }
 
