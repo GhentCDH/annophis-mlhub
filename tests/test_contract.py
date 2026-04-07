@@ -54,6 +54,63 @@ class ChainedAnnotator(LocalAnnotator):
         return []
 
 
+class TokenizerAnnotator(LocalAnnotator):
+    """Produces Token annotations."""
+
+    name = "tokenizer"
+    annotation_type = "tokens"
+
+    def __init__(self, **kwargs):
+        super().__init__(produces_annotation=["lapps:Token"], **kwargs)
+
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        tokens = doc.text.value.split()
+        result = []
+        offset = 0
+        for i, word in enumerate(tokens):
+            start = doc.text.value.index(word, offset)
+            result.append(
+                LIFAnnotation(
+                    id=f"tok{i}",
+                    type="Token",
+                    start=start,
+                    end=start + len(word),
+                    features={"word": word},
+                )
+            )
+            offset = start + len(word)
+        return result
+
+
+class POSTaggerAnnotator(LocalAnnotator):
+    """Enriches existing Token annotations with a pos feature."""
+
+    name = "pos-tagger"
+    annotation_type = "pos"
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            requires_annotation=["lapps:Token"],
+            produces_feature=["lapps:Token#pos"],
+            **kwargs,
+        )
+
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        # Return annotations with the same ids as existing tokens, adding pos
+        result = []
+        for view in doc.views:
+            for ann in view.annotations:
+                if ann.type == "Token":
+                    result.append(
+                        LIFAnnotation(
+                            id=ann.id,
+                            type="Token",
+                            features={"pos": "NN"},
+                        )
+                    )
+        return result
+
+
 def _lif_doc(text="hello"):
     return {
         "@context": "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
@@ -197,3 +254,29 @@ class TestFeatureValidation:
         violations = validate_lif_contract(doc, contract)
         assert len(violations) == 1
         assert "Token#pos" in violations[0]
+
+
+class TestFeatureMerging:
+    """Test that returning annotations with existing ids merges features."""
+
+    def test_pos_tagger_enriches_tokens(self, client):
+        """A POS tagger adds features to tokens produced by a prior tokenizer."""
+        annotators.register(TokenizerAnnotator())
+        annotators.register(POSTaggerAnnotator())
+        resp = client.post(
+            "/annotate",
+            json={
+                "document": _lif_doc("hello world"),
+                "annotators": ["tokenizer", "pos-tagger"],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        view = data["views"][0]
+        # Should still have exactly 2 token annotations, not 4
+        assert len(view["annotations"]) == 2
+        for ann in view["annotations"]:
+            assert ann["@type"] == "Token"
+            # Original word feature preserved, pos feature added
+            assert "word" in ann["features"]
+            assert ann["features"]["pos"] == "NN"

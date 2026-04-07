@@ -1,6 +1,6 @@
 [project]
 name = "annophis-mlhub"
-version = "0.2.1"
+version = "0.3.3"
 description = "Text annotation API"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,7 +20,7 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.25", "httpx", "ruff>=0.9"]
 
 [tool.setuptools.packages.find]
-include = ["annophis-mlhub*"]
+include = ["annophis_mlhub*"]
 
 [tool.pytest.ini_options]
 log_cli = true

@@ -42,18 +42,41 @@ def _merge_annotations(
     annotations: list[LIFAnnotation],
     producer: str,
 ) -> LIFDocument:
-    """Merge annotations into the document's single view."""
+    """Merge annotations into the document's single view.
+
+    If an incoming annotation has the same ``id`` as an existing one,
+    its features are merged into the existing annotation (new features
+    are added, existing features are overwritten).  This allows an
+    annotator to enrich tokens produced by a prior annotator (e.g. add
+    a ``pos`` feature to existing Token annotations).
+
+    Annotations with new ids are appended as usual.
+    """
     view = doc.views[0]
-    new_annotations = list(view.annotations) + annotations
+
+    # Index existing annotations by id for fast lookup
+    existing_by_id: dict[str, int] = {
+        a.id: idx for idx, a in enumerate(view.annotations)
+    }
+    merged = list(view.annotations)
+
+    for ann in annotations:
+        if ann.id in existing_by_id:
+            # Merge features into the existing annotation
+            idx = existing_by_id[ann.id]
+            old = merged[idx]
+            merged_features = {**old.features, **ann.features}
+            merged[idx] = old.model_copy(update={"features": merged_features})
+        else:
+            existing_by_id[ann.id] = len(merged)
+            merged.append(ann)
+
     new_contains = dict(view.metadata.contains)
-    # Add each distinct annotation @type to the contains metadata
     for ann in annotations:
         if ann.type not in new_contains:
             new_contains[ann.type] = ContainsEntry(producer=producer, type=ann.type)
     new_metadata = ViewMetadata(contains=new_contains)
-    new_view = view.model_copy(
-        update={"annotations": new_annotations, "metadata": new_metadata}
-    )
+    new_view = view.model_copy(update={"annotations": merged, "metadata": new_metadata})
     return doc.model_copy(update={"views": [new_view]})
 
 
