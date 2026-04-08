@@ -116,7 +116,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         return [LIFAnnotation.model_validate(a) for a in data["annotations"]]
 
     async def info(self) -> dict[str, Any]:
-        from annophis_mlhub.annotators.local import build_descriptor_node
+        from annophis_mlhub.annotators.descriptors import build_descriptor_node
 
         try:
             client = await self.get_client()

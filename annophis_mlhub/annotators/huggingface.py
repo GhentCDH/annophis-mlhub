@@ -19,7 +19,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
-from annophis_mlhub.annotators.local import build_descriptor_node
+from annophis_mlhub.annotators.descriptors import build_descriptor_node
 from annophis_mlhub.annotators.remote import RemoteAnnotator
 from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.models import WsInputUnit, WsOutputUnit

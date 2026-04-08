@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from annophis_mlhub.annotators.local import (
+from annophis_mlhub.annotators.descriptors import (
     build_descriptor_context,
     build_descriptor_node,
 )

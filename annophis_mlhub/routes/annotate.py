@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator
+from annophis_mlhub.annotators.descriptors import annotator_uri
 from annophis_mlhub.annotators.remote import RemoteAnnotator
 from annophis_mlhub.lif import (
     ContainsEntry,
@@ -120,7 +121,9 @@ async def annotate(request: AnnotateRequest):
             raise HTTPException(
                 422, f"Annotator {name!r} contract violations: {violations}"
             )
-        projected = apply_contract_to_metadata(projected, ann.lif_contract, ann.name)
+        projected = apply_contract_to_metadata(
+            projected, ann.lif_contract, annotator_uri(ann.name)
+        )
         pipeline.append(ann)
 
     # ── Execute: all contracts are satisfiable, run the pipeline ──────────
@@ -130,7 +133,7 @@ async def annotate(request: AnnotateRequest):
 
         annotations = await ann.annotate(doc)
         doc = _merge_annotations(
-            doc, annotations, ann.name, ann.lif_contract.produces_feature
+            doc, annotations, annotator_uri(ann.name), ann.lif_contract.produces_feature
         )
 
     return doc.model_dump(by_alias=True, exclude_none=True)

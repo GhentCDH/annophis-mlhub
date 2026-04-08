@@ -7,9 +7,7 @@ from fastapi.responses import JSONResponse
 
 from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator
-from annophis_mlhub.annotators.local import (
-    build_descriptor_context,
-)
+from annophis_mlhub.annotators.descriptors import build_descriptor_context
 from annophis_mlhub.models import Health
 
 router = APIRouter()
