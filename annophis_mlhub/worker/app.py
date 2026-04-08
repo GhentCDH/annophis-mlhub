@@ -15,6 +15,7 @@ Architecture::
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -26,6 +27,8 @@ from annophis_mlhub.annotators.descriptors import (
 from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.models import WsInputUnit, WsOutputUnit
 from annophis_mlhub.worker.base import ModelWorker
+
+logger = logging.getLogger(__name__)
 
 
 class _QueueItem:
@@ -136,8 +139,9 @@ def create_worker_app(
                 except Exception as exc:
                     try:
                         await websocket.send_json({"id": uid, "error": str(exc)})
-                    except Exception:
-                        pass
+                    except (WebSocketDisconnect, RuntimeError):
+                        logger.debug("WebSocket disconnected during error send")
+                        break
 
         await asyncio.gather(receive(), send())
 

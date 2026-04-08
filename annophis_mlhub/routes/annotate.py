@@ -6,9 +6,9 @@ from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconn
 from pydantic import BaseModel
 
 from annophis_mlhub import annotators
-from annophis_mlhub.annotators.base import Annotator
+from annophis_mlhub.annotators.base import Annotator, is_streamable
 from annophis_mlhub.annotators.descriptors import annotator_uri
-from annophis_mlhub.annotators.remote import RemoteAnnotator
+from annophis_mlhub.annotators.session import StreamSession
 from annophis_mlhub.lif import (
     ContainsEntry,
     LIFAnnotation,
@@ -90,9 +90,9 @@ def _merge_annotations(
     return doc.model_copy(update={"views": [new_view]})
 
 
-async def _is_available(a) -> bool:
+async def _is_available(a: Annotator) -> bool:
     """Quick availability check — remote annotators are pinged, local ones always pass."""
-    if not isinstance(a, RemoteAnnotator):
+    if not getattr(a, "base_url", None):
         return True
     try:
         await a.info()
@@ -165,12 +165,8 @@ async def ws_annotate_hub(
     else:
         targets = list(all_anns.values())
 
-    remote_targets: list[RemoteAnnotator] = [
-        a for a in targets if isinstance(a, RemoteAnnotator)
-    ]
-    local_targets: list[Annotator] = [
-        a for a in targets if not isinstance(a, RemoteAnnotator)
-    ]
+    streaming_targets = [a for a in targets if is_streamable(a)]
+    non_streaming_targets = [a for a in targets if not is_streamable(a)]
 
     await websocket.accept()
     result_queue: asyncio.Queue[WsOutputUnit | None] = asyncio.Queue()
@@ -186,10 +182,12 @@ async def ws_annotate_hub(
                     annotations=annotations,
                 )
             )
+        except asyncio.CancelledError:
+            raise
         except Exception:
-            pass
+            logger.exception("Local annotator %r failed on unit %s", ann.name, unit.id)
 
-    async def run_reader(session) -> None:
+    async def run_reader(session: StreamSession) -> None:
         async for out in session:
             await result_queue.put(out)
 
@@ -200,13 +198,14 @@ async def ws_annotate_hub(
                 break
             try:
                 await websocket.send_json(item.model_dump(by_alias=True))
-            except Exception:
-                pass
+            except (WebSocketDisconnect, RuntimeError):
+                logger.debug("WebSocket disconnected during send, stopping")
+                break
 
     async with contextlib.AsyncExitStack() as stack:
-        sessions = [
+        sessions: list[StreamSession] = [
             await stack.enter_async_context(ann.stream_session())
-            for ann in remote_targets
+            for ann in streaming_targets
         ]
         reader_tasks = [asyncio.create_task(run_reader(s)) for s in sessions]
         send_task = asyncio.create_task(send())
@@ -217,7 +216,7 @@ async def ws_annotate_hub(
                 unit = WsInputUnit(**data)
                 for session in sessions:
                     await session.send(unit)
-                for ann in local_targets:
+                for ann in non_streaming_targets:
                     task = asyncio.create_task(annotate_local(ann, unit))
                     local_tasks.add(task)
                     task.add_done_callback(local_tasks.discard)
