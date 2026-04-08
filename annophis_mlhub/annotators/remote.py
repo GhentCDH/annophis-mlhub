@@ -38,7 +38,7 @@ class RemoteAnnotator(ABC):
         annotation_type: str | None = None,
         base_url: str | None = None,
         description: str | None = None,
-        requires_language: str | None = None,
+        requires_language: list[str] | None = None,
         requires_annotation: list[str] | None = None,
         requires_feature: list[str] | None = None,
         produces_annotation: list[str] | None = None,
@@ -54,7 +54,7 @@ class RemoteAnnotator(ABC):
             self.description = description
         self._client: httpx.AsyncClient | None = None
         self.lif_contract = LIFContract(
-            requires_language=requires_language,
+            requires_language=requires_language or [],
             requires_annotation=requires_annotation or [],
             requires_feature=requires_feature or [],
             produces_annotation=produces_annotation or [],

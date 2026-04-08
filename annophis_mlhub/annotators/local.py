@@ -26,7 +26,7 @@ class LocalAnnotator(ABC):
         annotation_type: str | None = None,
         description: str | None = None,
         max_concurrency: int = _DEFAULT_MAX_CONCURRENCY,
-        requires_language: str | None = None,
+        requires_language: list[str] | None = None,
         requires_annotation: list[str] | None = None,
         requires_feature: list[str] | None = None,
         produces_annotation: list[str] | None = None,
@@ -40,7 +40,7 @@ class LocalAnnotator(ABC):
             self.description = description
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self.lif_contract = LIFContract(
-            requires_language=requires_language,
+            requires_language=requires_language or [],
             requires_annotation=requires_annotation or [],
             requires_feature=requires_feature or [],
             produces_annotation=produces_annotation or [],
@@ -90,7 +90,9 @@ def build_descriptor_node(annotator: Any) -> dict[str, Any]:
 
     contract: LIFContract = annotator.lif_contract
     if contract.requires_language:
-        node["annophis_mlhub:requiresLanguage"] = {"@id": contract.requires_language}
+        node["annophis_mlhub:requiresLanguage"] = [
+            {"@id": lang} for lang in contract.requires_language
+        ]
     if contract.requires_annotation:
         node["annophis_mlhub:requiresAnnotation"] = [
             {"@id": t} for t in contract.requires_annotation

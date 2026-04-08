@@ -3,7 +3,7 @@
 # Any extra fields are passed to the annotator constructor.
 #
 # LIF contract fields (all optional):
-#   requires_language      - lexvo URI, e.g. "lexvo:grc"
+#   requires_language      - list of lexvo URIs, e.g. ["lexvo:grc"]
 #   requires_annotation    - list of LAPPS types, e.g. ["lapps:Sentence"]
 #   requires_feature       - list of LAPPS features, e.g. ["lapps:Token#pos"]
 #   produces_annotation    - list of LAPPS types produced
@@ -54,7 +54,7 @@ annotation_type = "pos"
 class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
 description = "DBBert model for Part of Speech. Expects greek"
-requires_language = "lexvo:grc"
+requires_language = ["lexvo:grc"]
 produces_annotation = ["lapps:Token"]
 produces_feature = ["lapps:Token#pos"]
 

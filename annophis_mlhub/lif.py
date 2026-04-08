@@ -120,7 +120,7 @@ class LIFContract(BaseModel):
     using LAPPS vocabulary URIs / CURIEs.
     """
 
-    requires_language: str | None = None  # lexvo URI, e.g. "lexvo:grc"
+    requires_language: list[str] = []  # lexvo URIs, e.g. ["lexvo:grc"]
     requires_annotation: list[str] = []  # e.g. ["lapps:Sentence"]
     requires_feature: list[str] = []  # e.g. ["lapps:Token#pos"]
     produces_annotation: list[str] = []  # e.g. ["lapps:Token"]
@@ -204,7 +204,6 @@ def validate_lif_contract(
 
     # ── requires_language ────────────────────────────────────────────────
     if contract.requires_language:
-        required_lang = expand_curie(contract.requires_language, ctx)
         doc_lang = doc.text.language
         if doc_lang is None:
             violations.append(
@@ -212,7 +211,8 @@ def validate_lif_contract(
             )
         else:
             expanded_doc_lang = expand_curie(doc_lang, ctx)
-            if expanded_doc_lang != required_lang:
+            allowed = {expand_curie(lang, ctx) for lang in contract.requires_language}
+            if expanded_doc_lang not in allowed:
                 violations.append(
                     f"requires language {contract.requires_language} "
                     f"but document has {doc_lang}"

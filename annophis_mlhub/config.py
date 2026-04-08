@@ -13,7 +13,7 @@ class AnnotatorConfig(BaseModel):
     name: str
     annotation_type: str
     class_path: str
-    requires_language: str | None = None
+    requires_language: list[str] = []
     requires_annotation: list[str] = []
     requires_feature: list[str] = []
     produces_annotation: list[str] = []

@@ -185,14 +185,14 @@ class TestLanguageValidation:
         doc = LIFDocument(
             text=LIFText(value="hello", language="lexvo:grc"),
         )
-        contract = LIFContract(requires_language="lexvo:grc")
+        contract = LIFContract(requires_language=["lexvo:grc"])
         assert validate_lif_contract(doc, contract) == []
 
     def test_language_mismatch(self):
         doc = LIFDocument(
             text=LIFText(value="hello", language="lexvo:eng"),
         )
-        contract = LIFContract(requires_language="lexvo:grc")
+        contract = LIFContract(requires_language=["lexvo:grc"])
         violations = validate_lif_contract(doc, contract)
         assert len(violations) == 1
         assert "language" in violations[0]
@@ -201,7 +201,7 @@ class TestLanguageValidation:
         doc = LIFDocument(
             text=LIFText(value="hello"),
         )
-        contract = LIFContract(requires_language="lexvo:grc")
+        contract = LIFContract(requires_language=["lexvo:grc"])
         violations = validate_lif_contract(doc, contract)
         assert len(violations) == 1
         assert "language" in violations[0]
