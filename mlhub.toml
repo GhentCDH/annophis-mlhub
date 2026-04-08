@@ -54,9 +54,6 @@ annotation_type = "pos"
 class_path = "annophis_mlhub.annotators.remote.GenericRemoteAnnotator"
 base_url = "http://localhost:10000"
 description = "DBBert model for Part of Speech. Expects greek"
-requires_language = ["lexvo:grc"]
-produces_annotation = ["lapps:Token"]
-produces_feature = ["lapps:Token#pos"]
 
 [[annotator]]
 name = "hf-ner"
