@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from annophis_mlhub.annotators.mixin import AnnotatorMixin
 from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
 
 
-class ModelWorker(ABC):
+class ModelWorker(AnnotatorMixin, ABC):
     """Base class for wrapping an ML model into an annophis_mlhub service.
 
     Subclasses implement two methods:
@@ -17,19 +18,20 @@ class ModelWorker(ABC):
     internal queue, and background worker thread.
     """
 
-    name: str = "unnamed"
-    annotation_type: str = "unknown"
-    description: str = ""
-
-    def __init__(self, name: str | None = None, annotation_type: str | None = None):
-        if name is not None:
-            self.name = name
-        if annotation_type is not None:
-            self.annotation_type = annotation_type
-
-    @property
-    def lif_contract(self) -> LIFContract:
-        return LIFContract(produces_annotation=[self.annotation_type])
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Backward compat: if no produces_annotation was given, infer from annotation_type
+        if (
+            not self.lif_contract.produces_annotation
+            and self.annotation_type != "unknown"
+        ):
+            self.lif_contract = LIFContract(
+                requires_language=self.lif_contract.requires_language,
+                requires_annotation=self.lif_contract.requires_annotation,
+                requires_feature=self.lif_contract.requires_feature,
+                produces_annotation=[self.annotation_type],
+                produces_feature=self.lif_contract.produces_feature,
+            )
 
     @abstractmethod
     def load(self) -> None:

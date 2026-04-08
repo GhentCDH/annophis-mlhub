@@ -16,6 +16,7 @@ Usage in mlhub.toml:
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -50,7 +51,7 @@ class _HfSession:
             )
         )
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> AsyncIterator[WsOutputUnit]:
         while True:
             item = await self._queue.get()
             if item is None:
@@ -77,6 +78,7 @@ class HuggingFaceAnnotator(RemoteAnnotator):
     """
 
     description: str = "HuggingFace Inference API NER model."
+    supports_streaming = True
     base_url: str = "https://router.huggingface.co"
     model: str = "dslim/bert-base-NER"
     token: str = ""

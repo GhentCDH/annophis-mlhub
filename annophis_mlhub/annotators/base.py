@@ -15,3 +15,8 @@ class Annotator(Protocol):
     async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]: ...
 
     async def info(self) -> dict[str, Any]: ...
+
+
+def is_streamable(annotator: Annotator) -> bool:
+    """Check if an annotator supports WebSocket streaming."""
+    return getattr(annotator, "supports_streaming", False)

@@ -1,12 +1,17 @@
+import logging
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 import websockets
 
-from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
+from annophis_mlhub.annotators.mixin import AnnotatorMixin
+from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.models import WsInputUnit, WsOutputUnit
+
+logger = logging.getLogger(__name__)
 
 
 class _WsSession:
@@ -18,48 +23,26 @@ class _WsSession:
     async def send(self, unit: WsInputUnit) -> None:
         await self._ws.send(unit.model_dump_json(by_alias=True))
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> AsyncIterator[WsOutputUnit]:
         async for message in self._ws:
             yield WsOutputUnit.model_validate_json(message)
 
 
-class RemoteAnnotator(ABC):
+class RemoteAnnotator(AnnotatorMixin, ABC):
     """Base for annotators backed by an external API."""
 
-    name: str = "unnamed"
-    annotation_type: str = "unknown"
-    description: str = ""
     base_url: str = ""
-    lif_contract: LIFContract
 
     def __init__(
         self,
-        name: str | None = None,
-        annotation_type: str | None = None,
+        *,
         base_url: str | None = None,
-        description: str | None = None,
-        requires_language: list[str] | None = None,
-        requires_annotation: list[str] | None = None,
-        requires_feature: list[str] | None = None,
-        produces_annotation: list[str] | None = None,
-        produces_feature: list[str] | None = None,
+        **kwargs,
     ):
-        if name is not None:
-            self.name = name
-        if annotation_type is not None:
-            self.annotation_type = annotation_type
+        super().__init__(**kwargs)
         if base_url is not None:
             self.base_url = base_url
-        if description is not None:
-            self.description = description
         self._client: httpx.AsyncClient | None = None
-        self.lif_contract = LIFContract(
-            requires_language=requires_language or [],
-            requires_annotation=requires_annotation or [],
-            requires_feature=requires_feature or [],
-            produces_annotation=produces_annotation or [],
-            produces_feature=produces_feature or [],
-        )
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -99,6 +82,8 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         base_url = "http://localhost:8001"
     """
 
+    supports_streaming = True
+
     def __init__(self, endpoint: str = "/annotate", timeout: float = 30.0, **kwargs):
         super().__init__(**kwargs)
         self.endpoint = endpoint
@@ -123,7 +108,8 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             resp = await client.get("/info")
             resp.raise_for_status()
             return resp.json()
-        except Exception:
+        except httpx.HTTPError as exc:
+            logger.warning("Failed to fetch /info from %s: %s", self.base_url, exc)
             return build_descriptor_node(self)
 
     @asynccontextmanager
