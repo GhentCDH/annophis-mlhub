@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
 CONFIG_PATH = Path("mlhub.toml")
+DEFAULT_BASE_URL = "http://localhost:8000"
 
 
 class AnnotatorConfig(BaseModel):
@@ -28,8 +29,8 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
     config_path: Path = CONFIG_PATH
-    base_url: str = "http://annophis_mlhub.org"
-    vocab_base_url: str = "http://vocab.annophis_mlhub.org/"
+    base_url: str = DEFAULT_BASE_URL
+    vocab_base_url: str = f"{DEFAULT_BASE_URL}/vocab"
 
 
 settings = Settings()
