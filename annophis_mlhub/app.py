@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from annophis_mlhub.docs import add_scalar_docs
 from annophis_mlhub.routes import annotate, health, vocab
@@ -32,6 +35,16 @@ def create_app() -> FastAPI:
     app.include_router(annotate.router, tags=["annotation"])
     app.include_router(vocab.router, tags=["vocabulary"])
     add_scalar_docs(app)
+
+    @app.get("/", include_in_schema=False)
+    async def root():
+        return RedirectResponse("/static/index.html")
+
+    app.mount(
+        "/static",
+        StaticFiles(directory=Path(__file__).parent / "static"),
+        name="static",
+    )
     return app
 
 

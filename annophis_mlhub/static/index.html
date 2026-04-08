@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Annohub</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #e94560;
+    --accent2: #533483;
+    --text: #eee;
+    --text-dim: #999;
+    --border: #2a2a4a;
+    --success: #4caf50;
+    --warn: #ff9800;
+    --error: #f44336;
+    --radius: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 1.4rem; font-weight: 600; }
+  header .status { font-size: 0.8rem; color: var(--text-dim); }
+  header .status.ok { color: var(--success); }
+
+  nav { display: flex; gap: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+  nav button { padding: 0.75rem 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  nav button:hover { color: var(--text); background: var(--surface2); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  h2 { font-size: 1.2rem; margin-bottom: 1rem; font-weight: 500; }
+  h3 { font-size: 1rem; margin-bottom: 0.5rem; font-weight: 500; }
+
+  label { display: block; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.3rem; }
+  textarea, input[type="text"] {
+    width: 100%; padding: 0.6rem 0.8rem; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  textarea { min-height: 120px; resize: vertical; }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+
+  button, .btn {
+    padding: 0.5rem 1rem; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-danger { background: var(--error); }
+  .btn-success { background: var(--success); }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-row { display: flex; gap: 1rem; align-items: flex-end; }
+  .form-row .form-group { flex: 1; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem; margin-bottom: 0.75rem;
+  }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .card-title { font-weight: 500; font-size: 0.95rem; }
+
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.7rem; margin-right: 0.3rem; margin-top: 0.3rem; }
+  .tag-requires { background: var(--accent2); color: #ddd; }
+  .tag-produces { background: var(--surface2); color: #adf; }
+
+  .pipeline-list { min-height: 60px; border: 1px dashed var(--border); border-radius: var(--radius); padding: 0.5rem; }
+  .pipeline-item {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
+    background: var(--surface2); border-radius: var(--radius); margin-bottom: 0.4rem; font-size: 0.85rem;
+  }
+  .pipeline-item .name { flex: 1; }
+  .pipeline-item button { padding: 0.2rem 0.4rem; font-size: 0.7rem; }
+
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 768px) { .columns { grid-template-columns: 1fr; } }
+
+  .progress-step { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; font-size: 0.85rem; }
+  .progress-step .icon { width: 20px; text-align: center; }
+  .progress-step.done .icon { color: var(--success); }
+  .progress-step.running .icon { color: var(--warn); }
+  .progress-step.error .icon { color: var(--error); }
+  .progress-step.pending .icon { color: var(--text-dim); }
+
+  select {
+    width: 100%; padding: 0.6rem 0.8rem; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text); font-size: 0.9rem;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 0.5rem; }
+  th { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-weight: 500; }
+  td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+  td.features { font-family: monospace; font-size: 0.75rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .text-view { font-family: monospace; font-size: 0.85rem; line-height: 1.6; padding: 1rem; background: var(--surface); border-radius: var(--radius); white-space: pre-wrap; word-break: break-word; margin-top: 0.5rem; }
+  .text-view mark { padding: 0.1rem 0.2rem; border-radius: 3px; color: #fff; }
+  .ann-color-0 { background: #e9456080; }
+  .ann-color-1 { background: #53348380; }
+  .ann-color-2 { background: #0f346080; }
+  .ann-color-3 { background: #4caf5080; }
+  .ann-color-4 { background: #ff980080; }
+  .ann-color-5 { background: #2196f380; }
+
+  .doc-meta { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; }
+  .doc-expand { cursor: pointer; }
+  .doc-expand:hover { border-color: var(--accent); }
+  .doc-detail { margin-top: 0.75rem; }
+  .doc-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  .lineage { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+  .lineage a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; border-radius: var(--radius);
+    font-size: 0.85rem; z-index: 1000; animation: fadeIn 0.2s; max-width: 400px;
+  }
+  .toast-success { background: var(--success); color: #fff; }
+  .toast-error { background: var(--error); color: #fff; }
+  .toast-info { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .empty { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Annohub</h1>
+  <span class="status" id="server-status">checking...</span>
+</header>
+
+<nav id="tab-bar">
+  <button data-tab="create" class="active">Create</button>
+  <button data-tab="pipeline">Pipeline</button>
+  <button data-tab="run">Run</button>
+  <button data-tab="documents">Documents</button>
+</nav>
+
+<main>
+  <!-- CREATE TAB -->
+  <div id="tab-create" class="tab-pane active">
+    <h2>Create LIF Document</h2>
+    <div class="form-group">
+      <label for="doc-label">Label</label>
+      <input type="text" id="doc-label" placeholder="My document">
+    </div>
+    <div class="form-group">
+      <label for="doc-text">Text</label>
+      <textarea id="doc-text" placeholder="Enter text to annotate..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="doc-lang">Language (optional)</label>
+        <input type="text" id="doc-lang" value="lexvo:eng" placeholder="lexvo:eng">
+      </div>
+      <div class="form-group" style="flex:0">
+        <label>&nbsp;</label>
+        <button onclick="createDocument()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIPELINE TAB -->
+  <div id="tab-pipeline" class="tab-pane">
+    <h2>Build Pipeline</h2>
+    <div class="columns">
+      <div>
+        <h3>Available Annotators</h3>
+        <div id="annotator-list"><div class="empty">Loading...</div></div>
+      </div>
+      <div>
+        <h3>Pipeline</h3>
+        <div id="pipeline-list" class="pipeline-list"></div>
+        <div style="margin-top:0.5rem; display:flex; gap:0.5rem;">
+          <button class="btn-sm btn-ghost" onclick="clearPipeline()">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RUN TAB -->
+  <div id="tab-run" class="tab-pane">
+    <h2>Run Pipeline</h2>
+    <div class="form-group">
+      <label for="run-doc">Select Document</label>
+      <select id="run-doc"></select>
+    </div>
+    <div class="form-group">
+      <label>Pipeline</label>
+      <div id="run-pipeline-summary" class="card" style="font-size:0.85rem; color:var(--text-dim);">No pipeline configured</div>
+    </div>
+    <div id="run-progress" style="margin-bottom:1rem;"></div>
+    <button id="run-btn" onclick="runPipeline()" disabled>Run Pipeline</button>
+  </div>
+
+  <!-- DOCUMENTS TAB -->
+  <div id="tab-documents" class="tab-pane">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <h2 style="margin-bottom:0">Documents</h2>
+      <button class="btn-sm btn-danger" onclick="clearAllDocs()">Clear All</button>
+    </div>
+    <div id="doc-list"></div>
+  </div>
+</main>
+
+<script>
+// ── API ──────────────────────────────────────────────────────────────────────
+const api = {
+  async health() {
+    const r = await fetch('/health');
+    return r.json();
+  },
+  async getAnnotators() {
+    const r = await fetch('/annotators');
+    const data = await r.json();
+    return data['@graph'] || [];
+  },
+  async annotate(doc, annotatorName) {
+    const r = await fetch('/annotate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: doc, annotators: [annotatorName] })
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      throw new Error(err.detail || JSON.stringify(err));
+    }
+    return r.json();
+  }
+};
+
+// ── STORE ────────────────────────────────────────────────────────────────────
+const store = {
+  _key: 'annohub_documents',
+  _pkey: 'annohub_pipeline',
+  getAll() {
+    return JSON.parse(localStorage.getItem(this._key) || '{}');
+  },
+  get(id) {
+    return this.getAll()[id] || null;
+  },
+  save(entry) {
+    const all = this.getAll();
+    all[entry.id] = entry;
+    localStorage.setItem(this._key, JSON.stringify(all));
+  },
+  remove(id) {
+    const all = this.getAll();
+    delete all[id];
+    localStorage.setItem(this._key, JSON.stringify(all));
+  },
+  clear() {
+    localStorage.removeItem(this._key);
+  },
+  getPipeline() {
+    return JSON.parse(localStorage.getItem(this._pkey) || '[]');
+  },
+  savePipeline(names) {
+    localStorage.setItem(this._pkey, JSON.stringify(names));
+  }
+};
+
+// ── LIF HELPERS ──────────────────────────────────────────────────────────────
+const lif = {
+  create(text, language) {
+    const doc = {
+      '@context': [
+        'http://vocab.lappsgrid.org/context-1.0.0.jsonld',
+        { lexvo: 'http://lexvo.org/id/iso639-3/' }
+      ],
+      text: { '@value': text },
+      metadata: {},
+      views: []
+    };
+    if (language) doc.text['@language'] = language;
+    return doc;
+  },
+  getText(doc) {
+    return doc?.text?.['@value'] || '';
+  },
+  getAnnotations(doc) {
+    const anns = [];
+    for (const view of doc?.views || []) {
+      for (const a of view.annotations || []) anns.push(a);
+    }
+    return anns;
+  }
+};
+
+// ── UI HELPERS ───────────────────────────────────────────────────────────────
+let _toastTimer;
+function toast(msg, type = 'info') {
+  let el = document.getElementById('toast');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'toast';
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.remove(), 3000);
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#tab-bar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector(`#tab-bar button[data-tab="${name}"]`).classList.add('active');
+  if (name === 'pipeline') renderPipeline();
+  if (name === 'run') renderRun();
+  if (name === 'documents') renderDocuments();
+}
+
+document.getElementById('tab-bar').addEventListener('click', e => {
+  if (e.target.dataset.tab) showTab(e.target.dataset.tab);
+});
+
+// ── ANNOTATOR CACHE ──────────────────────────────────────────────────────────
+let _annotators = null;
+async function loadAnnotators() {
+  if (_annotators) return _annotators;
+  try {
+    _annotators = await api.getAnnotators();
+  } catch {
+    _annotators = [];
+  }
+  return _annotators;
+}
+
+function annotatorLabel(a) {
+  return a['rdfs:label'] || a['@id']?.split('/').pop() || 'unnamed';
+}
+
+function annotatorDesc(a) {
+  return a['dcterms:description'] || '';
+}
+
+function annotatorTags(a) {
+  const tags = [];
+  for (const item of a['annophis_mlhub:requiresLanguage'] || [])
+    tags.push({ text: item['@id'], cls: 'tag-requires' });
+  for (const item of a['annophis_mlhub:requiresAnnotation'] || [])
+    tags.push({ text: item['@id'], cls: 'tag-requires' });
+  for (const item of a['annophis_mlhub:requiresFeature'] || [])
+    tags.push({ text: item['@id'], cls: 'tag-requires' });
+  for (const item of a['annophis_mlhub:producesAnnotation'] || [])
+    tags.push({ text: item['@id'], cls: 'tag-produces' });
+  for (const item of a['annophis_mlhub:producesFeature'] || [])
+    tags.push({ text: item['@id'], cls: 'tag-produces' });
+  return tags;
+}
+
+// ── CREATE TAB ───────────────────────────────────────────────────────────────
+function createDocument() {
+  const text = document.getElementById('doc-text').value.trim();
+  if (!text) { toast('Enter some text', 'error'); return; }
+  const label = document.getElementById('doc-label').value.trim() || text.slice(0, 40);
+  const lang = document.getElementById('doc-lang').value.trim();
+
+  const entry = {
+    id: crypto.randomUUID(),
+    label,
+    createdAt: new Date().toISOString(),
+    parentId: null,
+    pipelineStep: null,
+    document: lif.create(text, lang)
+  };
+  store.save(entry);
+  document.getElementById('doc-text').value = '';
+  document.getElementById('doc-label').value = '';
+  toast('Document created', 'success');
+}
+
+// ── PIPELINE TAB ─────────────────────────────────────────────────────────────
+async function renderPipeline() {
+  const annotators = await loadAnnotators();
+  const listEl = document.getElementById('annotator-list');
+
+  if (!annotators.length) {
+    listEl.innerHTML = '<div class="empty">No annotators available</div>';
+  } else {
+    listEl.innerHTML = annotators.map(a => {
+      const tags = annotatorTags(a).map(t => `<span class="tag ${t.cls}">${t.text}</span>`).join('');
+      return `<div class="card">
+        <div class="card-header">
+          <span class="card-title">${annotatorLabel(a)}</span>
+          <button class="btn-sm" onclick="addToPipeline('${annotatorLabel(a)}')">Add</button>
+        </div>
+        <div style="font-size:0.8rem;color:var(--text-dim)">${annotatorDesc(a)}</div>
+        <div>${tags}</div>
+      </div>`;
+    }).join('');
+  }
+  renderPipelineList();
+}
+
+function renderPipelineList() {
+  const pipeline = store.getPipeline();
+  const el = document.getElementById('pipeline-list');
+  if (!pipeline.length) {
+    el.innerHTML = '<div class="empty" style="padding:1rem">Drag annotators here</div>';
+    return;
+  }
+  el.innerHTML = pipeline.map((name, i) => `
+    <div class="pipeline-item">
+      <span style="color:var(--text-dim);font-size:0.75rem">${i + 1}</span>
+      <span class="name">${name}</span>
+      <button class="btn-sm btn-ghost" onclick="movePipeline(${i},-1)" ${i === 0 ? 'disabled' : ''}>&#9650;</button>
+      <button class="btn-sm btn-ghost" onclick="movePipeline(${i},1)" ${i === pipeline.length - 1 ? 'disabled' : ''}>&#9660;</button>
+      <button class="btn-sm btn-ghost" onclick="removePipeline(${i})">&#10005;</button>
+    </div>
+  `).join('');
+}
+
+function addToPipeline(name) {
+  const p = store.getPipeline();
+  p.push(name);
+  store.savePipeline(p);
+  renderPipelineList();
+}
+
+function removePipeline(i) {
+  const p = store.getPipeline();
+  p.splice(i, 1);
+  store.savePipeline(p);
+  renderPipelineList();
+}
+
+function movePipeline(i, dir) {
+  const p = store.getPipeline();
+  const j = i + dir;
+  if (j < 0 || j >= p.length) return;
+  [p[i], p[j]] = [p[j], p[i]];
+  store.savePipeline(p);
+  renderPipelineList();
+}
+
+function clearPipeline() {
+  store.savePipeline([]);
+  renderPipelineList();
+}
+
+// ── RUN TAB ──────────────────────────────────────────────────────────────────
+function renderRun() {
+  const docs = store.getAll();
+  const sel = document.getElementById('run-doc');
+  const entries = Object.values(docs).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  sel.innerHTML = entries.length
+    ? entries.map(e => `<option value="${e.id}">${e.label} ${e.pipelineStep ? '(' + e.pipelineStep + ')' : ''}</option>`).join('')
+    : '<option disabled>No documents</option>';
+
+  const pipeline = store.getPipeline();
+  const summary = document.getElementById('run-pipeline-summary');
+  summary.textContent = pipeline.length ? pipeline.join(' \u2192 ') : 'No pipeline configured';
+
+  document.getElementById('run-btn').disabled = !pipeline.length || !entries.length;
+  document.getElementById('run-progress').innerHTML = '';
+}
+
+let _running = false;
+async function runPipeline() {
+  if (_running) return;
+  _running = true;
+
+  const docId = document.getElementById('run-doc').value;
+  const pipeline = store.getPipeline();
+  const btn = document.getElementById('run-btn');
+  const progressEl = document.getElementById('run-progress');
+  btn.disabled = true;
+
+  // Render progress steps
+  progressEl.innerHTML = pipeline.map((name, i) =>
+    `<div class="progress-step pending" id="step-${i}"><span class="icon">\u25cb</span><span>${name}</span></div>`
+  ).join('');
+
+  let currentDocId = docId;
+  let currentDoc = store.get(docId)?.document;
+  if (!currentDoc) { toast('Document not found', 'error'); _running = false; btn.disabled = false; return; }
+
+  for (let i = 0; i < pipeline.length; i++) {
+    const stepEl = document.getElementById('step-' + i);
+    stepEl.className = 'progress-step running';
+    stepEl.querySelector('.icon').textContent = '\u25cf';
+
+    try {
+      const result = await api.annotate(currentDoc, pipeline[i]);
+      const entry = {
+        id: crypto.randomUUID(),
+        label: store.get(docId).label,
+        createdAt: new Date().toISOString(),
+        parentId: currentDocId,
+        pipelineStep: pipeline[i],
+        document: result
+      };
+      store.save(entry);
+      currentDocId = entry.id;
+      currentDoc = result;
+
+      stepEl.className = 'progress-step done';
+      stepEl.querySelector('.icon').textContent = '\u2713';
+    } catch (err) {
+      stepEl.className = 'progress-step error';
+      stepEl.querySelector('.icon').textContent = '\u2717';
+      toast(err.message, 'error');
+      break;
+    }
+  }
+
+  _running = false;
+  btn.disabled = false;
+  toast('Pipeline complete', 'success');
+}
+
+// ── DOCUMENTS TAB ────────────────────────────────────────────────────────────
+let _expandedDoc = null;
+
+function renderDocuments() {
+  const docs = store.getAll();
+  const entries = Object.values(docs).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const el = document.getElementById('doc-list');
+
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty">No documents yet. Create one in the Create tab.</div>';
+    return;
+  }
+
+  el.innerHTML = entries.map(e => {
+    const text = lif.getText(e.document);
+    const anns = lif.getAnnotations(e.document);
+    const expanded = _expandedDoc === e.id;
+
+    let detail = '';
+    if (expanded) {
+      const lineage = buildLineage(e.id, docs);
+      const lineageHtml = lineage.length > 1
+        ? `<div class="lineage">${lineage.map(l => `<a onclick="expandDoc('${l.id}')">${l.label}</a>`).join(' \u2192 ')}</div>`
+        : '';
+
+      const annTable = anns.length
+        ? `<table><thead><tr><th>ID</th><th>Type</th><th>Start</th><th>End</th><th>Features</th></tr></thead>
+           <tbody>${anns.map(a => `<tr><td>${a.id}</td><td>${a['@type']}</td><td>${a.start ?? ''}</td><td>${a.end ?? ''}</td><td class="features" title="${escHtml(JSON.stringify(a.features || {}))}">${escHtml(JSON.stringify(a.features || {}))}</td></tr>`).join('')}</tbody></table>`
+        : '<div style="font-size:0.8rem;color:var(--text-dim)">No annotations</div>';
+
+      const highlighted = highlightText(text, anns);
+
+      detail = `<div class="doc-detail">
+        ${lineageHtml}
+        <h3>Annotations (${anns.length})</h3>
+        ${annTable}
+        <h3 style="margin-top:1rem">Text</h3>
+        <div class="text-view">${highlighted}</div>
+        <div class="doc-actions">
+          <button class="btn-sm btn-ghost" onclick="exportDoc('${e.id}')">Export JSON</button>
+          <button class="btn-sm btn-danger" onclick="deleteDoc('${e.id}')">Delete</button>
+        </div>
+      </div>`;
+    }
+
+    return `<div class="card doc-expand" onclick="toggleDoc(event, '${e.id}')">
+      <div class="card-header">
+        <span class="card-title">${escHtml(e.label)}${e.pipelineStep ? ` <span class="tag tag-produces">${e.pipelineStep}</span>` : ''}</span>
+        <span style="font-size:0.75rem;color:var(--text-dim)">${anns.length} ann</span>
+      </div>
+      <div class="doc-meta">${new Date(e.createdAt).toLocaleString()} &mdash; ${text.slice(0, 80)}${text.length > 80 ? '...' : ''}</div>
+      ${detail}
+    </div>`;
+  }).join('');
+}
+
+function toggleDoc(event, id) {
+  if (event.target.closest('button, a')) return;
+  _expandedDoc = _expandedDoc === id ? null : id;
+  renderDocuments();
+}
+
+function expandDoc(id) {
+  _expandedDoc = id;
+  renderDocuments();
+}
+
+function deleteDoc(id) {
+  store.remove(id);
+  _expandedDoc = null;
+  renderDocuments();
+  toast('Document deleted', 'info');
+}
+
+function exportDoc(id) {
+  const entry = store.get(id);
+  if (!entry) return;
+  const blob = new Blob([JSON.stringify(entry.document, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${entry.label.replace(/[^a-z0-9]/gi, '_')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearAllDocs() {
+  if (!confirm('Delete all documents?')) return;
+  store.clear();
+  _expandedDoc = null;
+  renderDocuments();
+  toast('All documents cleared', 'info');
+}
+
+function buildLineage(id, docs) {
+  const chain = [];
+  let current = docs[id];
+  while (current) {
+    chain.unshift({ id: current.id, label: current.pipelineStep || current.label });
+    current = current.parentId ? docs[current.parentId] : null;
+  }
+  return chain;
+}
+
+function highlightText(text, anns) {
+  if (!anns.length || !text) return escHtml(text);
+
+  const types = [...new Set(anns.map(a => a['@type']))];
+  const spans = anns
+    .filter(a => a.start != null && a.end != null)
+    .sort((a, b) => a.start - b.start || b.end - a.end);
+
+  if (!spans.length) return escHtml(text);
+
+  let result = '';
+  let pos = 0;
+  for (const a of spans) {
+    if (a.start < pos) continue;
+    if (a.start > pos) result += escHtml(text.slice(pos, a.start));
+    const colorIdx = types.indexOf(a['@type']) % 6;
+    result += `<mark class="ann-color-${colorIdx}" title="${escHtml(a['@type'] + ': ' + JSON.stringify(a.features || {}))}">${escHtml(text.slice(a.start, a.end))}</mark>`;
+    pos = a.end;
+  }
+  if (pos < text.length) result += escHtml(text.slice(pos));
+  return result;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    await api.health();
+    const el = document.getElementById('server-status');
+    el.textContent = 'connected';
+    el.className = 'status ok';
+  } catch {
+    const el = document.getElementById('server-status');
+    el.textContent = 'server unreachable';
+  }
+})();
+</script>
+</body>
+</html>
