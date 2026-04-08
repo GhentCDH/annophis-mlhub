@@ -1,0 +1,52 @@
+meta {
+  name: annotate with false contract
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base}}/annotate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "document": {
+      "@context": [
+        "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        {
+          "lexvo": "http://lexvo.org/id/iso639-3/"
+        }
+      ],
+      "text": {
+        "@value": "My name is Neil Peeters and i was born on 25th April 2002. Now, i work at GhentCDH, which is in Ghent.",
+        "@language": "lexvo:en"
+      }
+    },
+    "annotators": [
+      "sentence-count",
+      "sentence-split"
+    ]
+  }
+}
+
+assert {
+  : eq
+}
+
+tests {
+  test("status is 422", function() {
+    expect(res.status).to.equal(422);
+  });
+
+  test("error message contains 'contract violations'", function() {
+    expect(res.body.detail).to.include("contract violations");
+  });
+
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
