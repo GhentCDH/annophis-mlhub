@@ -17,9 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 async def _annotator_node(a: Annotator) -> dict[str, Any] | None:
-    """Get JSON-LD graph node for an annotator, or None if unavailable."""
+    """Get JSON-LD graph node for an annotator, or None if unavailable.
+
+    Strips ``@context`` from the node since the hub provides a shared
+    top-level context in the ``@graph`` wrapper.
+    """
     try:
-        return await a.info()
+        node = await a.info()
+        node.pop("@context", None)
+        return node
     except Exception as e:
         logger.warning("Annotator %r unavailable: %s", a.name, e)
         return None

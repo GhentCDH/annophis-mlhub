@@ -14,6 +14,7 @@ from annophis_mlhub.lif import (
     LIFDocument,
     LIFView,
     ViewMetadata,
+    apply_contract_to_metadata,
     validate_lif_contract,
 )
 from annophis_mlhub.models import WsInputUnit, WsOutputUnit
@@ -106,18 +107,26 @@ async def annotate(request: AnnotateRequest):
     all_annotators = annotators.all()
     doc = _ensure_view(request.document)
 
+    # ── Static pre-check: validate the full pipeline before running anything ──
+    pipeline: list[Annotator] = []
+    projected = doc
     for name in request.annotators:
         ann = all_annotators.get(name)
         if ann is None:
             raise HTTPException(404, f"Unknown annotator: {name}")
-        if not await _is_available(ann):
-            raise HTTPException(503, f"Annotator {name!r} is not available")
 
-        violations = validate_lif_contract(doc, ann.lif_contract)
+        violations = validate_lif_contract(projected, ann.lif_contract)
         if violations:
             raise HTTPException(
                 422, f"Annotator {name!r} contract violations: {violations}"
             )
+        projected = apply_contract_to_metadata(projected, ann.lif_contract, ann.name)
+        pipeline.append(ann)
+
+    # ── Execute: all contracts are satisfiable, run the pipeline ──────────
+    for ann in pipeline:
+        if not await _is_available(ann):
+            raise HTTPException(503, f"Annotator {ann.name!r} is not available")
 
         annotations = await ann.annotate(doc)
         doc = _merge_annotations(

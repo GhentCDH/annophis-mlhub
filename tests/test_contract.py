@@ -111,6 +111,22 @@ class POSTaggerAnnotator(LocalAnnotator):
         return result
 
 
+class TrackingAnnotator(LocalAnnotator):
+    """Annotator that records whether it was called."""
+
+    name = "tracker"
+    annotation_type = "test"
+    called = False
+
+    def __init__(self, **kwargs):
+        super().__init__(produces_annotation=["lapps:NamedEntity"], **kwargs)
+        TrackingAnnotator.called = False
+
+    def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+        TrackingAnnotator.called = True
+        return [LIFAnnotation(id="ne0", type="NamedEntity", start=0, end=3)]
+
+
 def _lif_doc(text="hello"):
     return {
         "@context": "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
@@ -284,3 +300,42 @@ class TestFeatureMerging:
         contains = view["metadata"]["contains"]
         assert "Token" in contains
         assert "lapps:Token#pos" in contains
+
+
+class TestStaticPreCheck:
+    """The pipeline validates all contracts upfront before running annotators."""
+
+    def test_later_failure_prevents_earlier_annotator_from_running(self, client):
+        """If annotator B's contract is unsatisfiable, annotator A never runs."""
+        annotators.register(TrackingAnnotator())
+        annotators.register(ChainedAnnotator())  # requires NamedEntity
+        annotators.register(POSTaggerAnnotator())  # requires Token
+
+        # tracker produces NamedEntity, so chained is satisfied,
+        # but pos-tagger requires Token which nobody produces → 422
+        resp = client.post(
+            "/annotate",
+            json={
+                "document": _lif_doc(),
+                "annotators": ["tracker", "chained", "pos-tagger"],
+            },
+        )
+        assert resp.status_code == 422
+        assert "pos-tagger" in resp.json()["detail"]
+        # tracker should NOT have been called
+        assert not TrackingAnnotator.called
+
+    def test_static_check_passes_valid_pipeline(self, client):
+        """A valid pipeline passes the static check and runs all annotators."""
+        annotators.register(TrackingAnnotator())
+        annotators.register(ChainedAnnotator())  # requires NamedEntity
+
+        resp = client.post(
+            "/annotate",
+            json={
+                "document": _lif_doc(),
+                "annotators": ["tracker", "chained"],
+            },
+        )
+        assert resp.status_code == 200
+        assert TrackingAnnotator.called

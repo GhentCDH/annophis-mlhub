@@ -69,9 +69,7 @@ def build_descriptor_context() -> list:
     from annophis_mlhub.config import settings
 
     vocab_ns = settings.vocab_base_url.rstrip("/") + "/"
-    vocab_url = settings.base_url.rstrip("/") + "/vocab"
     return [
-        vocab_url,
         {
             "annophis_mlhub": vocab_ns,
             "rdfs": "http://www.w3.org/2000/01/rdf-schema#",

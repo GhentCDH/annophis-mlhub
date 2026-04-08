@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from pyld import jsonld
 
+from annophis_mlhub.config import settings
 
 # ── LIF document models ─────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ DEFAULT_CONTEXT: dict[str, str] = {
     "lapps": "http://vocab.lappsgrid.org/",
     "lexvo": "http://lexvo.org/id/iso639-3/",
     "dcterms": "http://purl.org/dc/terms/",
+    "annophis_mlhub": settings.vocab_base_url.rstrip("/") + "/",
 }
 
 
@@ -262,3 +264,35 @@ def validate_lif_contract(
             violations.append(f"requires feature {req_feat}")
 
     return violations
+
+
+def apply_contract_to_metadata(
+    doc: LIFDocument, contract: LIFContract, producer: str
+) -> LIFDocument:
+    """Project a contract's ``produces_*`` onto the document's metadata.
+
+    Returns a copy of the document whose ``metadata.contains`` has been
+    updated as if the annotator had run, without touching annotations.
+    This enables a static dry-run: validate each contract in sequence
+    against the projected state to catch pipeline errors before running
+    any expensive annotators.
+    """
+    if not doc.views:
+        view = LIFView(id="v0", metadata=ViewMetadata(), annotations=[])
+        doc = doc.model_copy(update={"views": [view]})
+
+    view = doc.views[0]
+    new_contains = dict(view.metadata.contains)
+
+    for ann_type in contract.produces_annotation:
+        local = _local_name(expand_curie(ann_type))
+        if local not in new_contains:
+            new_contains[local] = ContainsEntry(producer=producer, type=local)
+
+    for feat in contract.produces_feature:
+        if feat not in new_contains:
+            new_contains[feat] = ContainsEntry(producer=producer, type=feat)
+
+    new_metadata = ViewMetadata(contains=new_contains)
+    new_view = view.model_copy(update={"metadata": new_metadata})
+    return doc.model_copy(update={"views": [new_view]})

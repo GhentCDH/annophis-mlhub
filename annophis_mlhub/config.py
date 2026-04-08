@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
     config_path: Path = CONFIG_PATH
-    base_url: str = "http://localhost:8000"
+    base_url: str = "http://annophis_mlhub.org"
     vocab_base_url: str = "http://vocab.annophis_mlhub.org/"
 
 
