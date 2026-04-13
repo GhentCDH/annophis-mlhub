@@ -125,6 +125,9 @@ class LIFContract(BaseModel):
     requires_feature: list[str] = []  # e.g. ["lapps:Token#pos"]
     produces_annotation: list[str] = []  # e.g. ["lapps:Token"]
     produces_feature: list[str] = []  # e.g. ["lapps:Token#pos"]
+    input_granularity: str | None = (
+        None  # e.g. "Sentence", "Token"; None=document-level
+    )
 
 
 # ── CURIE expansion helpers ──────────────────────────────────────────────────

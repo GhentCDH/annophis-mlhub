@@ -25,6 +25,7 @@ class AnnotatorMixin:
         requires_feature: list[str] | None = None,
         produces_annotation: list[str] | None = None,
         produces_feature: list[str] | None = None,
+        input_granularity: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -40,4 +41,5 @@ class AnnotatorMixin:
             requires_feature=requires_feature or [],
             produces_annotation=produces_annotation or [],
             produces_feature=produces_feature or [],
+            input_granularity=input_granularity,
         )

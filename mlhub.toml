@@ -14,6 +14,8 @@ name = "dummy-ner"
 annotation_type = "ner"
 class_path = "annophis_mlhub.annotators.dummy.DummyNerAnnotator"
 produces_annotation = ["lapps:NamedEntity"]
+requires_annotation = ["lapps:Sentence"]
+input_granularity = "Sentence"
 
 [[annotator]]
 name = "sentence-split"

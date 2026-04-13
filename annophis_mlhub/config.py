@@ -18,6 +18,7 @@ class AnnotatorConfig(BaseModel):
     requires_feature: list[str] = []
     produces_annotation: list[str] = []
     produces_feature: list[str] = []
+    input_granularity: str | None = None
     # arbitrary extra fields passed to the annotator constructor
     model_config = {"extra": "allow"}
 
@@ -42,6 +43,7 @@ _LIF_CONTRACT_FIELDS = {
     "requires_feature",
     "produces_annotation",
     "produces_feature",
+    "input_granularity",
 }
 
 

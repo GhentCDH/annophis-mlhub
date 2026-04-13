@@ -9,6 +9,12 @@ from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator, is_streamable
 from annophis_mlhub.annotators.descriptors import annotator_uri
 from annophis_mlhub.annotators.session import StreamSession
+from annophis_mlhub.cache import (
+    build_filtered_document,
+    compute_cache_plan,
+    remove_stale_annotations,
+    stamp_annotations,
+)
 from annophis_mlhub.lif import (
     ContainsEntry,
     LIFAnnotation,
@@ -131,9 +137,24 @@ async def annotate(request: AnnotateRequest):
         if not await _is_available(ann):
             raise HTTPException(503, f"Annotator {ann.name!r} is not available")
 
-        annotations = await ann.annotate(doc)
+        producer = annotator_uri(ann.name)
+        plan = compute_cache_plan(doc, producer, ann.lif_contract)
+        print(plan)
+        if plan.skip_entirely:
+            logger.debug("Cache hit for %s, skipping", ann.name)
+            continue
+
+        doc = remove_stale_annotations(doc, producer, plan)
+
+        if ann.lif_contract.input_granularity and plan.miss_spans:
+            run_doc = build_filtered_document(doc, plan.miss_spans, ann.lif_contract)
+        else:
+            run_doc = doc
+
+        annotations = await ann.annotate(run_doc)
+        annotations = stamp_annotations(annotations, producer, ann.lif_contract, doc)
         doc = _merge_annotations(
-            doc, annotations, annotator_uri(ann.name), ann.lif_contract.produces_feature
+            doc, annotations, producer, ann.lif_contract.produces_feature
         )
 
     return doc.model_dump(by_alias=True, exclude_none=True)
