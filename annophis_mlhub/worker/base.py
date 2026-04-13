@@ -31,6 +31,7 @@ class ModelWorker(AnnotatorMixin, ABC):
                 requires_feature=self.lif_contract.requires_feature,
                 produces_annotation=[self.annotation_type],
                 produces_feature=self.lif_contract.produces_feature,
+                input_granularity=self.lif_contract.input_granularity,
             )
 
     @abstractmethod

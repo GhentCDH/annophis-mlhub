@@ -117,13 +117,14 @@ def test_dummy_ner_from_config(_use_real_config, client):
     resp = client.post(
         "/annotate",
         json={
-            "document": _lif_doc("Alice went to Paris"),
-            "annotators": ["dummy-ner"],
+            "document": _lif_doc("Alice went to Paris."),
+            "annotators": ["sentence-split", "dummy-ner"],
         },
     )
     assert resp.status_code == 200
     data = resp.json()
     view = data["views"][0]
-    words = [a["features"]["word"] for a in view["annotations"]]
+    ner_anns = [a for a in view["annotations"] if a["@type"] == "NamedEntity"]
+    words = [a["features"]["word"] for a in ner_anns]
     assert "Alice" in words
     assert "Paris" in words

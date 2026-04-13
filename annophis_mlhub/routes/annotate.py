@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -122,6 +123,13 @@ async def annotate(request: AnnotateRequest):
         if ann is None:
             raise HTTPException(404, f"Unknown annotator: {name}")
 
+        # Sync contract from remote worker before validation
+        if getattr(ann, "base_url", None):
+            try:
+                await ann.info()
+            except Exception:
+                pass  # availability is checked later
+
         violations = validate_lif_contract(projected, ann.lif_contract)
         if violations:
             raise HTTPException(
@@ -186,7 +194,9 @@ async def ws_annotate_hub(
     else:
         targets = list(all_anns.values())
 
-    streaming_targets = [a for a in targets if is_streamable(a)]
+    targets = cast(list[Annotator], targets)
+
+    streaming_targets = cast(list[Annotator], [a for a in targets if is_streamable(a)])
     non_streaming_targets = [a for a in targets if not is_streamable(a)]
 
     await websocket.accept()
@@ -225,7 +235,7 @@ async def ws_annotate_hub(
 
     async with contextlib.AsyncExitStack() as stack:
         sessions: list[StreamSession] = [
-            await stack.enter_async_context(ann.stream_session())
+            await stack.enter_async_context(ann.stream_session())  # ty:ignore[unresolved-attribute]
             for ann in streaming_targets
         ]
         reader_tasks = [asyncio.create_task(run_reader(s)) for s in sessions]

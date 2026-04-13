@@ -8,7 +8,7 @@ import httpx
 import websockets
 
 from annophis_mlhub.annotators.mixin import AnnotatorMixin
-from annophis_mlhub.lif import LIFAnnotation, LIFDocument
+from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
 from annophis_mlhub.models import WsInputUnit, WsOutputUnit
 
 logger = logging.getLogger(__name__)
@@ -88,6 +88,7 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         super().__init__(**kwargs)
         self.endpoint = endpoint
         self.timeout = timeout
+        self._contract_synced = False
 
     async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]:
         client = await self.get_client()
@@ -100,6 +101,50 @@ class GenericRemoteAnnotator(RemoteAnnotator):
         data = resp.json()
         return [LIFAnnotation.model_validate(a) for a in data["annotations"]]
 
+    async def _sync_contract(self, data: dict[str, Any]) -> None:
+        """Merge remote contract fields into the local contract (once).
+
+        Fields already set locally (e.g. from TOML) take precedence.
+        """
+        if self._contract_synced:
+            return
+        self._contract_synced = True
+
+        _LIST_FIELDS = {
+            "annophis_mlhub:requiresLanguage": "requires_language",
+            "annophis_mlhub:requiresAnnotation": "requires_annotation",
+            "annophis_mlhub:requiresFeature": "requires_feature",
+            "annophis_mlhub:producesAnnotation": "produces_annotation",
+            "annophis_mlhub:producesFeature": "produces_feature",
+        }
+
+        updates: dict[str, Any] = {}
+        for json_key, field_name in _LIST_FIELDS.items():
+            if json_key in data and not getattr(self.lif_contract, field_name):
+                updates[field_name] = [
+                    entry["@id"] if isinstance(entry, dict) else entry
+                    for entry in data[json_key]
+                ]
+
+        if (
+            "annophis_mlhub:inputGranularity" in data
+            and not self.lif_contract.input_granularity
+        ):
+            updates["input_granularity"] = data["annophis_mlhub:inputGranularity"]
+
+        if updates:
+            self.lif_contract = LIFContract(
+                **{
+                    field: updates.get(field, getattr(self.lif_contract, field))
+                    for field in LIFContract.model_fields
+                }
+            )
+            logger.info(
+                "Synced contract from %s: %s",
+                self.base_url,
+                list(updates.keys()),
+            )
+
     async def info(self) -> dict[str, Any]:
         from annophis_mlhub.annotators.descriptors import build_descriptor_node
 
@@ -107,7 +152,9 @@ class GenericRemoteAnnotator(RemoteAnnotator):
             client = await self.get_client()
             resp = await client.get("/info")
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            await self._sync_contract(data)
+            return data
         except httpx.HTTPError as exc:
             logger.warning("Failed to fetch /info from %s: %s", self.base_url, exc)
             return build_descriptor_node(self)

@@ -40,5 +40,12 @@ hooks = [
     language = "system",
     types = ["python"],
     pass_filenames = false
-  }
+  },
+  {
+    id = "pytest",
+    name = "pytest",
+    entry = "uv run -m pytest tests",
+    language = "system",
+    types = ["python"],
+  },
 ]
