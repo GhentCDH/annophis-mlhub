@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient
 from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 from annophis_mlhub.worker import ModelWorker, create_worker_app
 
-DELAY = 0.10
-N = 10
+DELAY = 0.05
+N = 5
 logger = logging.getLogger(__name__)
 
 
@@ -51,9 +51,10 @@ def test_single_worker_serializes_requests():
             results = [f.result() for f in futures]
         elapsed = time.monotonic() - start
 
-    logger.info("single-worker elapsed=%.3fs (expected ~%.1fs)", elapsed, N * DELAY)
+    expected = N * DELAY * 0.8
+    logger.info("single-worker elapsed=%.3fs (expected >= %.3fs)", elapsed, expected)
     assert all(r.status_code == 200 for r in results)
-    assert elapsed >= N * DELAY * 0.8
+    assert elapsed >= expected
 
 
 def test_multi_worker_processes_concurrently():
@@ -65,6 +66,7 @@ def test_multi_worker_processes_concurrently():
             results = [f.result() for f in futures]
         elapsed = time.monotonic() - start
 
-    logger.info("multi-worker elapsed=%.3fs (expected ~%.1fs)", elapsed, DELAY)
+    expected = DELAY * 1.5
+    logger.info("multi-worker elapsed=%.3fs (expected < %.3fs)", elapsed, expected)
     assert all(r.status_code == 200 for r in results)
-    assert elapsed < N * DELAY * 1.3
+    assert elapsed < expected

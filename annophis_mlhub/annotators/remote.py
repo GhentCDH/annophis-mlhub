@@ -92,12 +92,19 @@ class GenericRemoteAnnotator(RemoteAnnotator):
 
     async def annotate(self, doc: LIFDocument) -> list[LIFAnnotation]:
         client = await self.get_client()
-        resp = await client.post(
-            self.endpoint,
-            json=doc.model_dump(by_alias=True),
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
+        try:
+            resp = await client.post(
+                self.endpoint,
+                json=doc.model_dump(by_alias=True),
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+        except httpx.ConnectError:
+            raise RuntimeError(
+                f"Annotator {self.name!r} is not reachable at {self.base_url}"
+            )
+        except httpx.TimeoutException:
+            raise RuntimeError(f"Annotator {self.name!r} timed out ({self.timeout}s)")
         data = resp.json()
         return [LIFAnnotation.model_validate(a) for a in data["annotations"]]
 

@@ -1,0 +1,325 @@
+meta {
+  name: annotate greek again
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base}}/annotate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "document": {
+      "@context": [
+        "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        {
+          "lexvo": "http://lexvo.org/id/iso639-3/"
+        }
+      ],
+      "text": {
+        "@value": "ῆναξ σὺν θεῶ ἁγ(ίας) τῆς βίβλου ταύτης. πῆναξ σὺν θεῶ ἁγ(ίας) τῆς βίβλου ταύτης",
+        "@language": "lexvo:grc"
+      },
+      "metadata": {},
+      "views": [
+        {
+          "id": "v0",
+          "metadata": {
+            "contains": {
+              "Sentence": {
+                "producer": "http://localhost:8000/annotators/sentence-split",
+                "type": "Sentence"
+              },
+              "SentenceCount": {
+                "producer": "http://localhost:8000/annotators/sentence-count",
+                "type": "SentenceCount"
+              },
+              "Token": {
+                "producer": "http://localhost:8000/annotators/colinmodel",
+                "type": "Token"
+              },
+              "lapps:Token#pos": {
+                "producer": "http://localhost:8000/annotators/colinmodel",
+                "type": "lapps:Token#pos"
+              }
+            }
+          },
+          "annotations": [
+            {
+              "id": "s0",
+              "@type": "Sentence",
+              "start": 0,
+              "end": 40,
+              "features": {},
+              "metadata": {
+                "input_hash": "7457f1273fff493d",
+                "producer": "http://localhost:8000/annotators/sentence-split"
+              }
+            },
+            {
+              "id": "s1",
+              "@type": "Sentence",
+              "start": 41,
+              "end": 80,
+              "features": {},
+              "metadata": {
+                "input_hash": "7457f1273fff493d",
+                "producer": "http://localhost:8000/annotators/sentence-split"
+              }
+            },
+            {
+              "id": "sc0",
+              "@type": "SentenceCount",
+              "start": 0,
+              "end": 80,
+              "features": {
+                "count": 2
+              },
+              "metadata": {
+                "input_hash": "24d5fa85cc3c1afd",
+                "producer": "http://localhost:8000/annotators/sentence-count"
+              }
+            },
+            {
+              "id": "tok0",
+              "@type": "Token",
+              "start": 0,
+              "end": 5,
+              "features": {
+                "pos": "n",
+                "lemma": "καὶ",
+                "case": "n"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok1",
+              "@type": "Token",
+              "start": 6,
+              "end": 9,
+              "features": {
+                "pos": "r",
+                "lemma": "σύν",
+                "case": "-"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok2",
+              "@type": "Token",
+              "start": 10,
+              "end": 13,
+              "features": {
+                "pos": "n",
+                "lemma": "θεός",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok3",
+              "@type": "Token",
+              "start": 14,
+              "end": 21,
+              "features": {
+                "pos": "a",
+                "lemma": "ἅγιος",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok4",
+              "@type": "Token",
+              "start": 22,
+              "end": 25,
+              "features": {
+                "pos": "l",
+                "lemma": "ὁ",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok5",
+              "@type": "Token",
+              "start": 26,
+              "end": 32,
+              "features": {
+                "pos": "n",
+                "lemma": "βίβλος",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok6",
+              "@type": "Token",
+              "start": 33,
+              "end": 40,
+              "features": {
+                "pos": "a",
+                "lemma": "οὗτος",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "1974ace49823d011",
+                "granularity_span": "0:40",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok7",
+              "@type": "Token",
+              "start": 41,
+              "end": 46,
+              "features": {
+                "pos": "n",
+                "lemma": "καὶ",
+                "case": "n"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok8",
+              "@type": "Token",
+              "start": 47,
+              "end": 50,
+              "features": {
+                "pos": "r",
+                "lemma": "σύν",
+                "case": "-"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok9",
+              "@type": "Token",
+              "start": 51,
+              "end": 54,
+              "features": {
+                "pos": "n",
+                "lemma": "θεός",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok10",
+              "@type": "Token",
+              "start": 55,
+              "end": 62,
+              "features": {
+                "pos": "a",
+                "lemma": "ἅγιος",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok11",
+              "@type": "Token",
+              "start": 63,
+              "end": 66,
+              "features": {
+                "pos": "l",
+                "lemma": "ὁ",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok12",
+              "@type": "Token",
+              "start": 67,
+              "end": 73,
+              "features": {
+                "pos": "n",
+                "lemma": "βίβλος",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            },
+            {
+              "id": "tok13",
+              "@type": "Token",
+              "start": 74,
+              "end": 80,
+              "features": {
+                "pos": "a",
+                "lemma": "οὗτος",
+                "case": "g"
+              },
+              "metadata": {
+                "input_hash": "db164e23cc86da0f",
+                "granularity_span": "41:80",
+                "producer": "http://localhost:8000/annotators/colinmodel"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "annotators": [
+      "sentence-split",
+      "sentence-count",
+      "colinmodel"
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

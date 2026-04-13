@@ -10,20 +10,49 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
-from annophis_mlhub.lif import LIFAnnotation, LIFContract, LIFDocument
+from annophis_mlhub.lif import (
+    LIFAnnotation,
+    LIFContract,
+    LIFDocument,
+    _local_name,
+    expand_curie,
+)
 
 # ── Hashing ─────────────────────────────────────────────────────────────────
+
+
+_CACHE_META_KEYS = {"input_hash", "granularity_span", "producer"}
+
+
+def _annotation_hash_data(ann: LIFAnnotation, strip_offsets: bool = False) -> str:
+    """Serialize an annotation for hashing, excluding cache-internal metadata.
+
+    When ``strip_offsets`` is True, ``start`` and ``end`` are also excluded.
+    This is used for per-span hashing where the text slice already captures
+    positional information — the model doesn't care where the span sits
+    within the document.
+    """
+    updates: dict = {
+        "metadata": {k: v for k, v in ann.metadata.items() if k not in _CACHE_META_KEYS}
+    }
+    if strip_offsets:
+        updates["start"] = None
+        updates["end"] = None
+    clean = ann.model_copy(update=updates)
+    return clean.model_dump_json(by_alias=True, exclude_none=True)
 
 
 def compute_input_hash(
     text: str,
     upstream_annotations: list[LIFAnnotation] | None = None,
+    *,
+    strip_offsets: bool = False,
 ) -> str:
     """Deterministic hash of a work unit's effective input."""
     h = hashlib.sha256(text.encode())
     if upstream_annotations:
         for ann in sorted(upstream_annotations, key=lambda a: a.id):
-            h.update(ann.model_dump_json(by_alias=True).encode())
+            h.update(_annotation_hash_data(ann, strip_offsets=strip_offsets).encode())
     return h.hexdigest()[:16]
 
 
@@ -41,7 +70,7 @@ class CachePlan:
         result = ""
         result += "hits: \n"
         for hit in self.hits:
-            result += f"\t-({hit.start}, {hit.end})\n"
+            result += f"\t-({hit.start}, {hit.end}) [{hit.metadata['producer']}]\n"
 
         result += "misses: \n"
         for miss in self.miss_spans:
@@ -82,6 +111,17 @@ def _annotations_by_producer(
     ]
 
 
+def _expand_type_set(types: list[str]) -> set[str]:
+    """Build a set containing both bare names and expanded URIs for matching."""
+    result = set()
+    for t in types:
+        result.add(t)
+        expanded = expand_curie(t)
+        result.add(expanded)
+        result.add(_local_name(expanded))
+    return result
+
+
 def _upstream_annotations(
     doc: LIFDocument,
     contract: LIFContract,
@@ -89,7 +129,7 @@ def _upstream_annotations(
     """Return annotations matching the contract's requires_annotation types."""
     if not doc.views or not contract.requires_annotation:
         return []
-    required = set(contract.requires_annotation)
+    required = _expand_type_set(contract.requires_annotation)
     return [a for a in doc.views[0].annotations if a.type in required]
 
 
@@ -117,26 +157,53 @@ def compute_cache_plan(
         doc.spans(contract.input_granularity)
     )
 
-    # Group existing annotations by their granularity_span metadata
+    # Group existing annotations by span key and by input_hash
     existing_by_span: dict[str, list[LIFAnnotation]] = {}
+    existing_by_hash: dict[str, list[tuple[str, LIFAnnotation]]] = {}
     for a in existing:
         key = a.metadata.get("granularity_span")
+        ihash = a.metadata.get("input_hash")
         if key is not None:
             existing_by_span.setdefault(key, []).append(a)
+        if ihash is not None and key is not None:
+            existing_by_hash.setdefault(ihash, []).append((key, a))
 
     plan = CachePlan()
     for start, end in granularity_spans:
         key = _span_key(start, end)
         text_slice = doc.text.value[start:end]
         upstream_in_range = _annotations_in_range(upstream, start, end)
-        span_hash = compute_input_hash(text_slice, upstream_in_range or None)
+        span_hash = compute_input_hash(
+            text_slice, upstream_in_range or None, strip_offsets=True
+        )
 
+        # Exact span key match
         group = existing_by_span.get(key, [])
         if group and all(a.metadata.get("input_hash") == span_hash for a in group):
             plan.hits.extend(group)
-        else:
-            plan.miss_spans.append((start, end))
-            plan.miss_hashes[key] = span_hash
+            continue
+
+        # Hash match: same content at different offsets (upstream edit shifted spans)
+        hash_group = existing_by_hash.get(span_hash)
+        if hash_group:
+            old_key = hash_group[0][0]
+            old_start = int(old_key.split(":")[0])
+            offset_delta = start - old_start
+            for _, a in hash_group:
+                plan.hits.append(
+                    a.model_copy(
+                        update={
+                            "start": (a.start or 0) + offset_delta,
+                            "end": (a.end or 0) + offset_delta,
+                            "metadata": {**a.metadata, "granularity_span": key},
+                        }
+                    )
+                )
+            del existing_by_hash[span_hash]
+            continue
+
+        plan.miss_spans.append((start, end))
+        plan.miss_hashes[key] = span_hash
 
     plan.skip_entirely = len(plan.miss_spans) == 0
     return plan
@@ -157,7 +224,7 @@ def build_filtered_document(
     if not doc.views:
         return doc
 
-    required_types = set(contract.requires_annotation)
+    required_types = _expand_type_set(contract.requires_annotation)
     filtered: list[LIFAnnotation] = []
     for ann in doc.views[0].annotations:
         if ann.type not in required_types:
@@ -221,7 +288,9 @@ def stamp_annotations(
                 key = _span_key(start, end)
                 text_slice = doc.text.value[start:end]
                 upstream_in_range = _annotations_in_range(upstream, start, end)
-                span_hash = compute_input_hash(text_slice, upstream_in_range or None)
+                span_hash = compute_input_hash(
+                    text_slice, upstream_in_range or None, strip_offsets=True
+                )
                 span_key = key
                 break
 

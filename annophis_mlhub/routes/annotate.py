@@ -159,7 +159,10 @@ async def annotate(request: AnnotateRequest):
         else:
             run_doc = doc
 
-        annotations = await ann.annotate(run_doc)
+        try:
+            annotations = await ann.annotate(run_doc)
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc))
         annotations = stamp_annotations(annotations, producer, ann.lif_contract, doc)
         doc = _merge_annotations(
             doc, annotations, producer, ann.lif_contract.produces_feature

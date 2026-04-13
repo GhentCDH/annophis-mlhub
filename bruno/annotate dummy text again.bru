@@ -1,0 +1,187 @@
+meta {
+  name: annotate dummy text again
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base}}/annotate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "document": {
+      "@context": [
+        "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        {
+          "lexvo": "http://lexvo.org/id/iso639-3/"
+        }
+      ],
+      "text": {
+        "@value": "My name is Neil Peeters and i was born on 25th April 2002. Now, i work at GhentCDH, which is in Ghent.",
+        "@language": "lexvo:en"
+      },
+      "metadata": {},
+      "views": [
+        {
+          "id": "v0",
+          "metadata": {
+            "contains": {
+              "Sentence": {
+                "producer": "http://localhost:8000/annotators/sentence-split",
+                "type": "Sentence"
+              },
+              "SentenceCount": {
+                "producer": "http://localhost:8000/annotators/sentence-count",
+                "type": "SentenceCount"
+              },
+              "NamedEntity": {
+                "producer": "http://localhost:8000/annotators/dummy-ner",
+                "type": "NamedEntity"
+              }
+            }
+          },
+          "annotations": [
+            {
+              "id": "s0",
+              "@type": "Sentence",
+              "start": 0,
+              "end": 58,
+              "features": {},
+              "metadata": {
+                "input_hash": "2d0609f53192fdcb",
+                "producer": "http://localhost:8000/annotators/sentence-split"
+              }
+            },
+            {
+              "id": "s1",
+              "@type": "Sentence",
+              "start": 59,
+              "end": 102,
+              "features": {},
+              "metadata": {
+                "input_hash": "2d0609f53192fdcb",
+                "producer": "http://localhost:8000/annotators/sentence-split"
+              }
+            },
+            {
+              "id": "sc0",
+              "@type": "SentenceCount",
+              "start": 0,
+              "end": 102,
+              "features": {
+                "count": 2
+              },
+              "metadata": {
+                "input_hash": "2d0609f53192fdcb",
+                "producer": "http://localhost:8000/annotators/sentence-count"
+              }
+            },
+            {
+              "id": "ne0",
+              "@type": "NamedEntity",
+              "start": 0,
+              "end": 2,
+              "features": {
+                "category": "ENTITY",
+                "word": "My"
+              },
+              "metadata": {
+                "input_hash": "c43e325a7a0fdfc8",
+                "granularity_span": "0:58",
+                "producer": "http://localhost:8000/annotators/dummy-ner"
+              }
+            },
+            {
+              "id": "ne1",
+              "@type": "NamedEntity",
+              "start": 11,
+              "end": 15,
+              "features": {
+                "category": "ENTITY",
+                "word": "Neil"
+              },
+              "metadata": {
+                "input_hash": "c43e325a7a0fdfc8",
+                "granularity_span": "0:58",
+                "producer": "http://localhost:8000/annotators/dummy-ner"
+              }
+            },
+            {
+              "id": "ne2",
+              "@type": "NamedEntity",
+              "start": 16,
+              "end": 23,
+              "features": {
+                "category": "ENTITY",
+                "word": "Peeters"
+              },
+              "metadata": {
+                "input_hash": "c43e325a7a0fdfc8",
+                "granularity_span": "0:58",
+                "producer": "http://localhost:8000/annotators/dummy-ner"
+              }
+            },
+            {
+              "id": "ne3",
+              "@type": "NamedEntity",
+              "start": 47,
+              "end": 52,
+              "features": {
+                "category": "ENTITY",
+                "word": "April"
+              },
+              "metadata": {
+                "input_hash": "c43e325a7a0fdfc8",
+                "granularity_span": "0:58",
+                "producer": "http://localhost:8000/annotators/dummy-ner"
+              }
+            },
+            {
+              "id": "ne4",
+              "@type": "NamedEntity",
+              "start": 59,
+              "end": 62,
+              "features": {
+                "category": "ENTITY",
+                "word": "Now"
+              },
+              "metadata": {
+                "input_hash": "8745a2499fd5fa9a",
+                "granularity_span": "59:102",
+                "producer": "http://localhost:8000/annotators/dummy-ner"
+              }
+            },
+            {
+              "id": "ne5",
+              "@type": "NamedEntity",
+              "start": 96,
+              "end": 101,
+              "features": {
+                "category": "ENTITY",
+                "word": "Ghent"
+              },
+              "metadata": {
+                "input_hash": "8745a2499fd5fa9a",
+                "granularity_span": "59:102",
+                "producer": "http://localhost:8000/annotators/dummy-ner"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "annotators": [
+      "sentence-split",
+      "sentence-count",
+      "dummy-ner"
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

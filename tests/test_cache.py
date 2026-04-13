@@ -119,7 +119,7 @@ def test_per_span_partial_hit():
     )
 
     # Compute the hash for the first sentence and add a cached token
-    h = compute_input_hash("a b c.", [sentences[0]])
+    h = compute_input_hash("a b c.", [sentences[0]], strip_offsets=True)
     doc.views[0].annotations.append(
         LIFAnnotation(
             id="tok0",
@@ -155,7 +155,7 @@ def test_per_span_all_hit():
     )
 
     for i, (s, e) in enumerate([(0, 6), (7, 13)]):
-        h = compute_input_hash(doc.text.value[s:e], [sentences[i]])
+        h = compute_input_hash(doc.text.value[s:e], [sentences[i]], strip_offsets=True)
         doc.views[0].annotations.append(
             LIFAnnotation(
                 id=f"tok{i}",
