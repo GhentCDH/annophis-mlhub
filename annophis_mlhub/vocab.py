@@ -88,16 +88,17 @@ def _build() -> dict:
             },
             {
                 "@id": "annophis_mlhub:inputGranularity",
-                "@type": "owl:DatatypeProperty",
+                "@type": "owl:ObjectProperty",
                 "rdfs:label": "input granularity",
                 "rdfs:comment": (
-                    "The annotation type that defines the work-unit granularity "
-                    "for content-addressed caching. For example, a tokenizer with "
-                    "inputGranularity 'Sentence' processes each sentence independently, "
-                    "enabling per-sentence cache reuse when upstream annotations change."
+                    "The annotation type (identified by URI) that defines the "
+                    "work-unit granularity for content-addressed caching. For "
+                    "example, a tokenizer with inputGranularity lapps:Sentence "
+                    "processes each sentence independently, enabling per-sentence "
+                    "cache reuse when upstream annotations change."
                 ),
                 "rdfs:domain": {"@id": "annophis_mlhub:Annotator"},
-                "rdfs:range": {"@id": "rdfs:Literal"},
+                "rdfs:range": {"@id": "rdfs:Class"},
             },
             {
                 "@id": "annophis_mlhub:producesFeature",

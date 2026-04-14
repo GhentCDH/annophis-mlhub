@@ -59,6 +59,6 @@ def build_descriptor_node(annotator: Any) -> dict[str, Any]:
             {"@id": f} for f in contract.produces_feature
         ]
     if contract.input_granularity:
-        node["annophis_mlhub:inputGranularity"] = contract.input_granularity
+        node["annophis_mlhub:inputGranularity"] = {"@id": contract.input_granularity}
 
     return node
