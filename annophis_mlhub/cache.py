@@ -157,6 +157,16 @@ def compute_cache_plan(
         doc.spans(contract.input_granularity)
     )
 
+    # No spans of this type in the document — fall back to document-level
+    if not granularity_spans:
+        doc_hash = compute_input_hash(doc.text.value, upstream or None)
+        if existing and all(a.metadata.get("input_hash") == doc_hash for a in existing):
+            return CachePlan(hits=existing, skip_entirely=True)
+        return CachePlan(
+            miss_spans=[(0, len(doc.text.value))],
+            miss_hashes={_span_key(0, len(doc.text.value)): doc_hash},
+        )
+
     # Group existing annotations by span key and by input_hash
     existing_by_span: dict[str, list[LIFAnnotation]] = {}
     existing_by_hash: dict[str, list[tuple[str, LIFAnnotation]]] = {}
@@ -255,7 +265,14 @@ def stamp_annotations(
     """Stamp input_hash, granularity_span, and producer on returned annotations."""
     upstream = _upstream_annotations(doc, contract)
 
-    if contract.input_granularity is None:
+    granularity_spans = (
+        list(doc.spans(contract.input_granularity))
+        if contract.input_granularity
+        else []
+    )
+
+    # Document-level: no granularity, or granularity type not present in doc
+    if not granularity_spans:
         doc_hash = compute_input_hash(doc.text.value, upstream or None)
         return [
             a.model_copy(
@@ -269,9 +286,6 @@ def stamp_annotations(
             )
             for a in annotations
         ]
-
-    # Build span lookup for granularity
-    granularity_spans = list(doc.spans(contract.input_granularity))
 
     stamped = []
     for ann in annotations:

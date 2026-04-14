@@ -352,3 +352,131 @@ def test_pipeline_caching_integration(client):
     )
     assert resp.status_code == 200
     assert tokenizer.call_count == 1  # not called again
+
+
+# ── Granularity without matching spans (fallback to document-level) ─────────
+
+
+def test_granularity_without_spans_falls_back_to_doc_level():
+    """When input_granularity is set but no spans of that type exist,
+    caching should fall back to document-level (all-or-nothing)."""
+    doc = _make_doc("hello world")
+    contract = LIFContract(
+        produces_annotation=["Sentence"],
+        input_granularity="Paragraph",  # no Paragraph annotations exist
+    )
+
+    # First check: no existing annotations, should be a full miss
+    plan = compute_cache_plan(doc, PRODUCER, contract)
+    assert not plan.skip_entirely
+    assert plan.miss_spans == [(0, 11)]
+
+    # Simulate a previous run: add annotation with matching doc-level hash
+    doc_hash = compute_input_hash("hello world")
+    doc.views[0].annotations.append(
+        LIFAnnotation(
+            id="s0",
+            type="Sentence",
+            start=0,
+            end=11,
+            metadata={"input_hash": doc_hash, "producer": PRODUCER},
+        )
+    )
+
+    # Same text: should be a full hit
+    plan = compute_cache_plan(doc, PRODUCER, contract)
+    assert plan.skip_entirely
+    assert len(plan.hits) == 1
+
+    # Different text: should be a full miss
+    doc2 = _make_doc("changed text")
+    doc2.views[0].annotations = list(doc.views[0].annotations)
+    plan = compute_cache_plan(doc2, PRODUCER, contract)
+    assert not plan.skip_entirely
+
+
+def test_granularity_with_spans_uses_per_span():
+    """When input_granularity is set AND spans exist, per-span caching is used."""
+    doc = _make_doc("hello. world.")
+    paragraphs = [
+        LIFAnnotation(id="p0", type="Paragraph", start=0, end=6),
+        LIFAnnotation(id="p1", type="Paragraph", start=7, end=13),
+    ]
+    doc.views[0].annotations = paragraphs
+    doc.views[0].metadata.contains["Paragraph"] = ContainsEntry(producer="para-split")
+
+    contract = LIFContract(
+        produces_annotation=["Sentence"],
+        input_granularity="Paragraph",
+    )
+
+    plan = compute_cache_plan(doc, PRODUCER, contract)
+    assert not plan.skip_entirely
+    assert len(plan.miss_spans) == 2  # per-span, not document-level
+
+
+def test_granularity_fallback_stamps_doc_level():
+    """stamp_annotations falls back to doc-level when granularity spans are absent."""
+    doc = _make_doc("hello world")
+    contract = LIFContract(
+        produces_annotation=["Sentence"],
+        input_granularity="Paragraph",
+    )
+    ann = LIFAnnotation(id="s0", type="Sentence", start=0, end=11)
+    stamped = stamp_annotations([ann], PRODUCER, contract, doc)
+    assert stamped[0].metadata["input_hash"] == compute_input_hash("hello world")
+    assert stamped[0].metadata["producer"] == PRODUCER
+    assert "granularity_span" not in stamped[0].metadata
+
+
+def test_granularity_fallback_pipeline_integration(client):
+    """End-to-end: annotator with input_granularity but no matching spans
+    runs normally and caches at document level."""
+
+    class ParagraphSplitter(LocalAnnotator):
+        call_count: int = 0
+
+        def __init__(self):
+            super().__init__(
+                name="para-splitter",
+                annotation_type="sentence",
+                produces_annotation=["Sentence"],
+                input_granularity="Paragraph",
+            )
+            self.call_count = 0
+
+        def annotate_sync(self, doc: LIFDocument) -> list[LIFAnnotation]:
+            self.call_count += 1
+            return [
+                LIFAnnotation(
+                    id="s0",
+                    type="Sentence",
+                    start=0,
+                    end=len(doc.text.value),
+                )
+            ]
+
+    splitter = ParagraphSplitter()
+    annotators.register(splitter)
+
+    doc_payload = {
+        "@context": "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+        "text": {"@value": "hello world"},
+    }
+
+    # First run
+    resp = client.post(
+        "/annotate",
+        json={"document": doc_payload, "annotators": ["para-splitter"]},
+    )
+    assert resp.status_code == 200
+    result1 = resp.json()
+    assert splitter.call_count == 1
+
+    # Second run with same output: should skip
+    resp = client.post(
+        "/annotate",
+        json={"document": result1, "annotators": ["para-splitter"]},
+    )
+    assert resp.status_code == 200
+    assert splitter.call_count == 1  # cached
