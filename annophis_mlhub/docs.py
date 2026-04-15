@@ -2,19 +2,15 @@ from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
 
 CUSTOM_CSS = """
-:root {
-  --scalar-color-1: #1a1a2e;
-  --scalar-color-accent: #e94560;
-  --scalar-background-1: #fafafa;
-  --scalar-border-color: #e0e0e0;
-}
-.dark-mode {
-  --scalar-background-1: #16213e;
-  --scalar-background-2: #1a1a2e;
-  --scalar-color-1: #e0e0e0;
-}
 [class*="powered-by"] { display: none !important; }
 .agent-button-container {
+  display: none !important;
+}
+a.no-underline,
+.scalar-mcp-layer,
+button.bg-sidebar-b-search:nth-child(3),
+.open-api-client-button
+{
   display: none !important;
 }
 """
