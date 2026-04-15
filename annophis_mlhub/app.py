@@ -6,15 +6,14 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
+from annophis_mlhub import annotators
+from annophis_mlhub.config import load_annotators
 from annophis_mlhub.docs import add_scalar_docs
 from annophis_mlhub.routes import annotate, health, vocab
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    from annophis_mlhub import annotators
-    from annophis_mlhub.config import load_annotators
-
+async def lifespan(_app: FastAPI):
     load_annotators()
     yield
 
@@ -28,14 +27,14 @@ def create_app() -> FastAPI:
         title="Annohub",
         description="Text annotation API",
         version="0.1.0",
-        docs_url="/docs",
+        docs_url=None,
         redoc_url=None,
         lifespan=lifespan,
     )
     app.include_router(health.router, tags=["system"])
     app.include_router(annotate.router, tags=["annotation"])
     app.include_router(vocab.router, tags=["vocabulary"])
-    app.add_middleware(GZipMiddleware, minimum_size=500)  # ty:ignore[invalid-argument-type]
+    app.add_middleware(GZipMiddleware, minimum_size=500)
     add_scalar_docs(app)
 
     @app.get("/", include_in_schema=False)

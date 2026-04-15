@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 import logging
-from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -197,9 +196,9 @@ async def ws_annotate_hub(
     else:
         targets = list(all_anns.values())
 
-    targets = cast(list[Annotator], targets)
+    targets = targets
 
-    streaming_targets = cast(list[Annotator], [a for a in targets if is_streamable(a)])
+    streaming_targets = [a for a in targets if is_streamable(a)]
     non_streaming_targets = [a for a in targets if not is_streamable(a)]
 
     await websocket.accept()
