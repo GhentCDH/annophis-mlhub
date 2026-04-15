@@ -9,21 +9,20 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pyld import jsonld
 
 from annophis_mlhub.config import settings
 
-# ── LIF document models ─────────────────────────────────────────────────────
-
 LAPPS_CONTEXT: list[str | dict[str, str]] = [
     "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
+    # lexvo is not defined in the LAPPS context
     {"lexvo": "http://lexvo.org/id/iso639-3/"},
 ]
 
 
 class LIFText(BaseModel):
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
 
     value: str = Field(validation_alias="@value", serialization_alias="@value")
     language: str | None = Field(
@@ -34,7 +33,7 @@ class LIFText(BaseModel):
 class LIFAnnotation(BaseModel):
     """A single annotation in a LIF view."""
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
 
     id: str
     type: str = Field(validation_alias="@type", serialization_alias="@type")
@@ -65,7 +64,7 @@ class LIFView(BaseModel):
 class LIFDocument(BaseModel):
     """Top-level LAPPS Interchange Format document."""
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
 
     context: Any = Field(
         default=LAPPS_CONTEXT,
