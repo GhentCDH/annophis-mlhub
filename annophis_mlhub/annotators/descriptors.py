@@ -14,18 +14,9 @@ def annotator_uri(name: str) -> str:
 
 def build_descriptor_context() -> list:
     """Return the shared ``@context`` for annotator descriptors."""
-    from annophis_mlhub.config import settings
+    from annophis_mlhub.lif import DEFAULT_CONTEXT
 
-    vocab_ns = settings.vocab_base_url.rstrip("/") + "/"
-    return [
-        {
-            "annophis_mlhub": vocab_ns,
-            "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-            "lapps": "http://vocab.lappsgrid.org/",
-            "dcterms": "http://purl.org/dc/terms/",
-            "lexvo": "http://lexvo.org/id/iso639-3/",
-        },
-    ]
+    return [DEFAULT_CONTEXT]
 
 
 def build_descriptor_node(annotator: Any) -> dict[str, Any]:
@@ -40,25 +31,21 @@ def build_descriptor_node(annotator: Any) -> dict[str, Any]:
     contract: LIFContract = annotator.lif_contract
     if contract.requires_language:
         node["annophis_mlhub:requiresLanguage"] = [
-            {"@id": lang} for lang in contract.requires_language
+            lang for lang in contract.requires_language
         ]
     if contract.requires_annotation:
         node["annophis_mlhub:requiresAnnotation"] = [
-            {"@id": t} for t in contract.requires_annotation
+            t for t in contract.requires_annotation
         ]
     if contract.requires_feature:
-        node["annophis_mlhub:requiresFeature"] = [
-            {"@id": f} for f in contract.requires_feature
-        ]
+        node["annophis_mlhub:requiresFeature"] = [f for f in contract.requires_feature]
     if contract.produces_annotation:
         node["annophis_mlhub:producesAnnotation"] = [
-            {"@id": t} for t in contract.produces_annotation
+            t for t in contract.produces_annotation
         ]
     if contract.produces_feature:
-        node["annophis_mlhub:producesFeature"] = [
-            {"@id": f} for f in contract.produces_feature
-        ]
+        node["annophis_mlhub:producesFeature"] = [f for f in contract.produces_feature]
     if contract.input_granularity:
-        node["annophis_mlhub:inputGranularity"] = {"@id": contract.input_granularity}
+        node["annophis_mlhub:inputGranularity"] = contract.input_granularity
 
     return node

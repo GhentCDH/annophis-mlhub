@@ -37,7 +37,8 @@ def test_list_annotators_empty(client):
     assert resp.status_code == 200
     data = resp.json()
     assert "@context" in data
-    assert data["@graph"] == []
+    assert "rdfs:label" not in data
+    assert "@graph" not in data
 
 
 def test_list_annotators_with_dummy(client):
@@ -46,10 +47,8 @@ def test_list_annotators_with_dummy(client):
     assert resp.status_code == 200
     data = resp.json()
     assert "@context" in data
-    graph = data["@graph"]
-    assert len(graph) == 1
-    assert graph[0]["rdfs:label"] == "dummy"
-    assert graph[0]["@type"] == "annophis_mlhub:Annotator"
+    assert data["rdfs:label"] == "dummy"
+    assert data["@type"] == "annophis_mlhub:Annotator"
 
 
 def test_annotate_no_annotators(client):

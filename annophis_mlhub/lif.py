@@ -14,11 +14,29 @@ from pyld import jsonld
 
 from annophis_mlhub.config import settings
 
-LAPPS_CONTEXT: list[str | dict[str, str]] = [
+type Context = dict[str, str | Context]
+
+LAPPS_CONTEXT: list[str | Context] = [
     "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
     # lexvo is not defined in the LAPPS context
     {"lexvo": "http://lexvo.org/id/iso639-3/"},
 ]
+
+# Default context used for expanding CURIEs in contracts and annotations.
+DEFAULT_CONTEXT: Context = {
+    "lapps": "http://vocab.lappsgrid.org/",
+    "lexvo": "http://lexvo.org/id/iso639-3/",
+    "dcterms": "http://purl.org/dc/terms/",
+    "annophis_mlhub": settings.vocab_base_url.rstrip("/") + "/",
+    "annotators": settings.base_url.rstrip("/") + "/annotators/",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "annophis_mlhub:requiresLanguage": {"@type": "@id"},
+    "annophis_mlhub:requiresAnnotation": {"@type": "@id"},
+    "annophis_mlhub:requiresFeature": {"@type": "@id"},
+    "annophis_mlhub:producesAnnotation": {"@type": "@id"},
+    "annophis_mlhub:producesFeature": {"@type": "@id"},
+    "annophis_mlhub:inputGranularity": {"@type": "@id"},
+}
 
 
 class LIFText(BaseModel):
@@ -110,6 +128,17 @@ class LIFDocument(BaseModel):
         """Yield ``(start, end)`` pairs for Token annotations."""
         return self.spans("Token", view)
 
+    @property
+    def full_context(self) -> Context:
+        ctx = dict(DEFAULT_CONTEXT)
+        if isinstance(self.context, dict):
+            ctx.update(self.context)
+        elif isinstance(self.context, list):
+            for entry in self.context:
+                if isinstance(entry, dict):
+                    ctx.update(entry)
+        return ctx
+
 
 # ── Contract ─────────────────────────────────────────────────────────────────
 
@@ -129,17 +158,6 @@ class LIFContract(BaseModel):
     )
 
 
-# ── CURIE expansion helpers ──────────────────────────────────────────────────
-
-# Default context used for expanding CURIEs in contracts and annotations.
-DEFAULT_CONTEXT: dict[str, str] = {
-    "lapps": "http://vocab.lappsgrid.org/",
-    "lexvo": "http://lexvo.org/id/iso639-3/",
-    "dcterms": "http://purl.org/dc/terms/",
-    "annophis_mlhub": settings.vocab_base_url.rstrip("/") + "/",
-}
-
-
 def _local_name(uri: str) -> str:
     """Extract the local name from a URI: everything after the last ``/`` or ``#``."""
     for sep in ("#", "/"):
@@ -148,14 +166,13 @@ def _local_name(uri: str) -> str:
     return uri
 
 
-def expand_curie(curie: str, context: dict[str, str] | None = None) -> str:
+def expand_curie(curie: str, context: Context | None = None) -> str:
     """Expand a CURIE like ``lapps:Token`` to a full URI.
 
     Uses pyld for spec-compliant expansion.  Falls back to the input string
     if expansion produces no result (i.e. it was already a full URI or unknown prefix).
     """
     ctx = context or DEFAULT_CONTEXT
-    # pyld expands @type correctly for CURIEs; use that instead of @id
     doc = {"@context": ctx, "@type": curie}
     expanded = jsonld.expand(doc)
     if expanded and "@type" in expanded[0]:
@@ -165,9 +182,7 @@ def expand_curie(curie: str, context: dict[str, str] | None = None) -> str:
     return curie
 
 
-def _view_contains_types(
-    view: LIFView, context: dict[str, str] | None = None
-) -> set[str]:
+def _view_contains_types(view: LIFView, context: Context | None = None) -> set[str]:
     """Return annotation type identifiers from a view's metadata.
 
     Returns both the raw key (e.g. ``"Sentence"``) and the expanded URI
@@ -182,9 +197,6 @@ def _view_contains_types(
     return result
 
 
-# ── Contract validation ──────────────────────────────────────────────────────
-
-
 def validate_lif_contract(
     doc: LIFDocument,
     contract: LIFContract,
@@ -195,17 +207,10 @@ def validate_lif_contract(
     """
     violations: list[str] = []
 
-    # Build a context dict for CURIE expansion from the document's @context.
-    ctx = dict(DEFAULT_CONTEXT)
-    if isinstance(doc.context, dict):
-        ctx.update(doc.context)
-    elif isinstance(doc.context, list):
-        for entry in doc.context:
-            if isinstance(entry, dict):
-                ctx.update(entry)
+    ctx = doc.full_context
 
-    # ── requires_language ────────────────────────────────────────────────
-    if contract.requires_language:
+    # Check requires_language
+    if len(contract.requires_language) > 0:
         doc_lang = doc.text.language
         if doc_lang is None:
             violations.append(
@@ -220,8 +225,8 @@ def validate_lif_contract(
                     f"but document has {doc_lang}"
                 )
 
-    # ── requires_annotation ──────────────────────────────────────────────
-    # Collect all annotation types declared in views' metadata.contains
+    # Check requires_annotation
+    # NOTE: this just checks if there's any view that has the required annotation
     available_types: set[str] = set()
     for view in doc.views:
         available_types |= _view_contains_types(view, ctx)
@@ -232,16 +237,14 @@ def validate_lif_contract(
         if expanded_req not in available_types and local_name not in available_types:
             violations.append(f"requires annotation type {req}")
 
-    # ── requires_feature ─────────────────────────────────────────────────
+    # Check requires_feature
     for req_feat in contract.requires_feature:
-        # e.g. "lapps:Token#pos" → type URI + feature name
         expanded = expand_curie(req_feat, ctx)
         if "#" in expanded:
             type_uri, _, feat_name = expanded.rpartition("#")
         else:
-            # No feature separator — treat as annotation type requirement
             violations.append(
-                f"requires feature {req_feat} (malformed, expected Type#feature)"
+                f"requires feature {req_feat} (malformed, expected Type#feature) (the contract itself is invalid)"
             )
             continue
 

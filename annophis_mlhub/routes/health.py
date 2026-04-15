@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+from pyld import jsonld
 
 from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator
@@ -46,6 +47,7 @@ async def list_annotators():
         "@context": build_descriptor_context(),
         "@graph": graph,
     }
+    doc = jsonld.compact(doc, build_descriptor_context())
     return JSONResponse(content=doc, media_type="application/ld+json")
 
 
@@ -58,8 +60,10 @@ async def get_annotator(name: str):
     node = await _annotator_node(a)
     if node is None:
         raise HTTPException(503, f"Annotator {name!r} is not available")
-    doc = {
-        "@context": build_descriptor_context(),
-        **node,
-    }
+    doc = jsonld.expand(
+        {
+            "@context": build_descriptor_context(),
+            **node,
+        }
+    )[0]
     return JSONResponse(content=doc, media_type="application/ld+json")
