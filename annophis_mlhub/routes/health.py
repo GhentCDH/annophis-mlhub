@@ -4,11 +4,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-from pyld import jsonld
-
 from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator
-from annophis_mlhub.annotators.descriptors import build_descriptor_context
+from annophis_mlhub.lif import LAPPS_CONTEXT, context_url
 from annophis_mlhub.models import Health
 
 router = APIRouter()
@@ -30,6 +28,15 @@ async def _annotator_node(a: Annotator) -> dict[str, Any] | None:
         return None
 
 
+@router.get("/context.jsonld", include_in_schema=False)
+async def jsonld_context():
+    """Serve the canonical JSON-LD context."""
+    return JSONResponse(
+        content={"@context": LAPPS_CONTEXT},
+        media_type="application/ld+json",
+    )
+
+
 @router.get("/health", response_model=Health)
 async def health():
     """Check the health of this server"""
@@ -44,10 +51,9 @@ async def list_annotators():
     )
     graph = [n for n in nodes if n is not None]
     doc = {
-        "@context": build_descriptor_context(),
+        "@context": context_url(),
         "@graph": graph,
     }
-    doc = jsonld.compact(doc, build_descriptor_context())
     return JSONResponse(content=doc, media_type="application/ld+json")
 
 
@@ -60,10 +66,8 @@ async def get_annotator(name: str):
     node = await _annotator_node(a)
     if node is None:
         raise HTTPException(503, f"Annotator {name!r} is not available")
-    doc = jsonld.expand(
-        {
-            "@context": build_descriptor_context(),
-            **node,
-        }
-    )[0]
+    doc = {
+        "@context": context_url(),
+        **node,
+    }
     return JSONResponse(content=doc, media_type="application/ld+json")

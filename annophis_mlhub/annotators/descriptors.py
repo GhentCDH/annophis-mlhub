@@ -12,11 +12,11 @@ def annotator_uri(name: str) -> str:
     return f"{settings.base_url.rstrip('/')}/annotators/{name}"
 
 
-def build_descriptor_context() -> list:
-    """Return the shared ``@context`` for annotator descriptors."""
-    from annophis_mlhub.lif import LAPPS_CONTEXT
+def build_descriptor_context() -> str | dict:
+    """Return the canonical context for annotator descriptors."""
+    from annophis_mlhub.lif import context_value
 
-    return [LAPPS_CONTEXT]
+    return context_value()
 
 
 def build_descriptor_node(annotator: Any) -> dict[str, Any]:

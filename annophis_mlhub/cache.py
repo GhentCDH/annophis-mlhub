@@ -66,18 +66,6 @@ class CachePlan:
     miss_hashes: dict[str, str] = field(default_factory=dict)  # "start:end" -> hash
     skip_entirely: bool = False
 
-    def __repr__(self) -> str:
-        result = ""
-        result += "hits: \n"
-        for hit in self.hits:
-            result += f"\t-({hit.start}, {hit.end}) [{hit.metadata['producer']}]\n"
-
-        result += "misses: \n"
-        for miss in self.miss_spans:
-            result += f"\t-({miss[0]}, {miss[1]})\n"
-
-        return result
-
 
 def _span_key(start: int, end: int) -> str:
     return f"{start}:{end}"

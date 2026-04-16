@@ -146,7 +146,6 @@ async def annotate(request: AnnotateRequest):
 
         producer = annotator_uri(ann.name)
         plan = compute_cache_plan(doc, producer, ann.lif_contract)
-        print(plan)
         if plan.skip_entirely:
             logger.debug("Cache hit for %s, skipping", ann.name)
             continue

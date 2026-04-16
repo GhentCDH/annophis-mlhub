@@ -274,10 +274,7 @@ const store = {
 const lif = {
   create(text, language) {
     const doc = {
-      '@context': [
-        'http://vocab.lappsgrid.org/context-1.0.0.jsonld',
-        { lexvo: 'http://lexvo.org/id/iso639-3/' }
-      ],
+      '@context': `${window.location.origin}/context.jsonld`,
       text: { '@value': text },
       metadata: {},
       views: []

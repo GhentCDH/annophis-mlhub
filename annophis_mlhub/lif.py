@@ -22,21 +22,13 @@ LAPPS_CONTEXT: Context = {
     "@vocab": "http://vocab.lappsgrid.org/",
     "meta": "http://vocab.lappsgrid.org/metadata/",
     "lif": "http://vocab.lappsgrid.org/interchange/",
-    "types": "http://vocab.lappsgrid.org/types/",
     "metadata": "meta:metadata",
     "contains": "meta:contains",
-    "producer": "meta:producer",
-    "url": {"@id": "meta:url", "@type": "@id"},
+    "producer": {"@id": "meta:producer", "@type": "@id"},
     "type": {"@id": "meta:type", "@type": "@id"},
     "version": "meta:version",
     "text": "lif:text",
-    "steps": "lif:steps",
     "annotations": "lif:annotations",
-    "tokenization": "types:tokenization/",
-    "tagset": "types:posType/",
-    "ner": "types:ner/",
-    "coref": "types:coref/",
-    "chunk": "types:chunk/",
     "token": "http://vocab.lappsgrid.org/Token#",
     "common": "http://vocab.lappsgrid.org/Annotation#",
     "id": "common:id",
@@ -44,11 +36,7 @@ LAPPS_CONTEXT: Context = {
     "end": "common:end",
     "label": "common:label",
     "pos": "token:pos",
-    "lemma": "token:lemma",
-    "kind": "token:kind",
     "word": "token:word",
-    "length": "token:length",
-    "orth": "token:orth",
     # ── Annohub extensions ──
     "lapps": "http://vocab.lappsgrid.org/",
     "lexvo": "http://lexvo.org/id/iso639-3/",
@@ -56,6 +44,8 @@ LAPPS_CONTEXT: Context = {
     "annophis_mlhub": settings.vocab_base_url.rstrip("/") + "/",
     "annotators": settings.base_url.rstrip("/") + "/annotators/",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "input_hash": "annophis_mlhub:inputHash",
+    "granularity_span": "annophis_mlhub:granularitySpan",
     "annophis_mlhub:requiresLanguage": {"@type": "@id"},
     "annophis_mlhub:requiresAnnotation": {"@type": "@id"},
     "annophis_mlhub:requiresFeature": {"@type": "@id"},
@@ -65,9 +55,15 @@ LAPPS_CONTEXT: Context = {
 }
 
 
-def normalize(doc: Any):
-    expanded = jsonld.expand(doc)
-    return jsonld.compact(expanded, LAPPS_CONTEXT)
+def context_url() -> str:
+    return f"{settings.base_url.rstrip('/')}/context.jsonld"
+
+
+def context_value() -> str | Context:
+    """Return the canonical context: inlined dict or endpoint URL."""
+    if settings.inline_context:
+        return LAPPS_CONTEXT
+    return context_url()
 
 
 class LIFText(BaseModel):
@@ -116,7 +112,7 @@ class LIFDocument(BaseModel):
     model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
 
     context: Any = Field(
-        default=LAPPS_CONTEXT,
+        default_factory=context_value,
         validation_alias="@context",
         serialization_alias="@context",
     )
@@ -161,7 +157,9 @@ class LIFDocument(BaseModel):
 
     def jsonld(self) -> dict[str, Any]:
         """Return a JSON-LD representation of this document."""
-        return self.model_dump(by_alias=True, exclude_none=True)
+        doc = self.model_dump(by_alias=True, exclude_none=True)
+        doc["@context"] = context_value()
+        return doc
 
     @property
     def full_context(self) -> Context:

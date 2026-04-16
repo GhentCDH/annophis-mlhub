@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     config_path: Path = CONFIG_PATH
     base_url: str = DEFAULT_BASE_URL
     vocab_base_url: str = f"{DEFAULT_BASE_URL}/vocab"
+    inline_context: bool = False
 
 
 settings = Settings()
