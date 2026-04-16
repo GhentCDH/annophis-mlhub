@@ -4,11 +4,7 @@ from annophis_mlhub import annotators
 from annophis_mlhub.annotators.local import LocalAnnotator
 from annophis_mlhub.cache import (
     CachePlan,
-    build_filtered_document,
-    compute_cache_plan,
-    compute_input_hash,
-    remove_stale_annotations,
-    stamp_annotations,
+    _compute_input_hash as compute_input_hash,
 )
 from annophis_mlhub.lif import (
     ContainsEntry,
@@ -55,7 +51,7 @@ def test_hash_differs_on_upstream():
 def test_doc_level_all_miss():
     doc = _make_doc("hello")
     contract = LIFContract(produces_annotation=["Token"])
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert not plan.skip_entirely
     assert plan.miss_spans == [(0, 5)]
     assert plan.hits == []
@@ -76,7 +72,7 @@ def test_doc_level_cache_hit():
             metadata={"input_hash": expected_hash, "producer": PRODUCER},
         )
     )
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert plan.skip_entirely
     assert len(plan.hits) == 1
 
@@ -92,7 +88,7 @@ def test_per_span_all_miss():
         produces_annotation=["Token"],
         input_granularity="Sentence",
     )
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert not plan.skip_entirely
     assert len(plan.miss_spans) == 2
 
@@ -125,7 +121,7 @@ def test_per_span_partial_hit():
         )
     )
 
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert not plan.skip_entirely
     assert len(plan.hits) == 1
     assert plan.hits[0].id == "tok0"
@@ -161,7 +157,7 @@ def test_per_span_all_hit():
             )
         )
 
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert plan.skip_entirely
     assert len(plan.hits) == 2
 
@@ -171,8 +167,11 @@ def test_filtered_doc_keeps_text():
     sentences = _make_sentence_annotations([(0, 6), (7, 13)])
     doc.views[0].annotations = sentences
 
-    contract = LIFContract(requires_annotation=["Sentence"])
-    filtered = build_filtered_document(doc, [(0, 6)], contract)
+    contract = LIFContract(
+        requires_annotation=["Sentence"], input_granularity="Sentence"
+    )
+    plan = CachePlan(doc, PRODUCER, contract, miss_spans=[(0, 6)])
+    filtered = plan._build_filtered_document(doc)
 
     assert filtered.text.value == "a b c. d e f."  # full text preserved
     assert len(filtered.views[0].annotations) == 1
@@ -184,7 +183,8 @@ def test_stamp_doc_level():
     contract = LIFContract(produces_annotation=["Token"])
     ann = LIFAnnotation(id="t0", type="Token", start=0, end=5)
 
-    stamped = stamp_annotations([ann], PRODUCER, contract, doc)
+    plan = CachePlan(doc, PRODUCER, contract)
+    stamped = plan._stamp([ann], doc)
     assert stamped[0].metadata["input_hash"] == compute_input_hash("hello")
     assert stamped[0].metadata["producer"] == PRODUCER
     assert "granularity_span" not in stamped[0].metadata
@@ -202,7 +202,8 @@ def test_stamp_per_span():
         input_granularity="Sentence",
     )
     ann = LIFAnnotation(id="tok0", type="Token", start=2, end=3)
-    stamped = stamp_annotations([ann], PRODUCER, contract, doc)
+    plan = CachePlan(doc, PRODUCER, contract)
+    stamped = plan._stamp([ann], doc)
     assert stamped[0].metadata["granularity_span"] == "0:6"
     assert stamped[0].metadata["input_hash"] is not None
 
@@ -232,8 +233,9 @@ def test_remove_stale():
     )
     doc.views[0].annotations = [hit, stale, other]
 
-    plan = CachePlan(hits=[hit])
-    result = remove_stale_annotations(doc, PRODUCER, plan)
+    contract = LIFContract(produces_annotation=["Token"])
+    plan = CachePlan(doc, PRODUCER, contract, hits=[hit])
+    result = plan._remove_stale()
     ids = [a.id for a in result.views[0].annotations]
     assert "keep" in ids
     assert "other" in ids
@@ -343,7 +345,7 @@ def test_granularity_without_spans_falls_back_to_doc_level():
     )
 
     # First check: no existing annotations, should be a full miss
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert not plan.skip_entirely
     assert plan.miss_spans == [(0, 11)]
 
@@ -360,14 +362,14 @@ def test_granularity_without_spans_falls_back_to_doc_level():
     )
 
     # Same text: should be a full hit
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert plan.skip_entirely
     assert len(plan.hits) == 1
 
     # Different text: should be a full miss
     doc2 = _make_doc("changed text")
     doc2.views[0].annotations = list(doc.views[0].annotations)
-    plan = compute_cache_plan(doc2, PRODUCER, contract)
+    plan = CachePlan.compute(doc2, PRODUCER, contract)
     assert not plan.skip_entirely
 
 
@@ -386,7 +388,7 @@ def test_granularity_with_spans_uses_per_span():
         input_granularity="Paragraph",
     )
 
-    plan = compute_cache_plan(doc, PRODUCER, contract)
+    plan = CachePlan.compute(doc, PRODUCER, contract)
     assert not plan.skip_entirely
     assert len(plan.miss_spans) == 2  # per-span, not document-level
 
@@ -399,7 +401,8 @@ def test_granularity_fallback_stamps_doc_level():
         input_granularity="Paragraph",
     )
     ann = LIFAnnotation(id="s0", type="Sentence", start=0, end=11)
-    stamped = stamp_annotations([ann], PRODUCER, contract, doc)
+    plan = CachePlan(doc, PRODUCER, contract)
+    stamped = plan._stamp([ann], doc)
     assert stamped[0].metadata["input_hash"] == compute_input_hash("hello world")
     assert stamped[0].metadata["producer"] == PRODUCER
     assert "granularity_span" not in stamped[0].metadata

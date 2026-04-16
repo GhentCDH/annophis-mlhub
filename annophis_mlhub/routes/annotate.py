@@ -9,15 +9,8 @@ from annophis_mlhub import annotators
 from annophis_mlhub.annotators.base import Annotator, is_streamable
 from annophis_mlhub.annotators.descriptors import annotator_uri
 from annophis_mlhub.annotators.session import StreamSession
-from annophis_mlhub.cache import (
-    build_filtered_document,
-    compute_cache_plan,
-    remove_stale_annotations,
-    stamp_annotations,
-)
+from annophis_mlhub.cache import CachePlan
 from annophis_mlhub.lif import (
-    ContainsEntry,
-    LIFAnnotation,
     LIFDocument,
     LIFView,
     ViewMetadata,
@@ -43,57 +36,6 @@ def _ensure_view(doc: LIFDocument) -> LIFDocument:
         return doc
     view = LIFView(id="v0", metadata=ViewMetadata(), annotations=[])
     return doc.model_copy(update={"views": [view]})
-
-
-def _merge_annotations(
-    doc: LIFDocument,
-    annotations: list[LIFAnnotation],
-    producer: str,
-    produces_feature: list[str] | None = None,
-) -> LIFDocument:
-    """Merge annotations into the document's single view.
-
-    If an incoming annotation has the same ``id`` as an existing one,
-    its features are merged into the existing annotation (new features
-    are added, existing features are overwritten).  This allows an
-    annotator to enrich tokens produced by a prior annotator (e.g. add
-    a ``pos`` feature to existing Token annotations).
-
-    Annotations with new ids are appended as usual.
-
-    ``produces_feature`` entries (e.g. ``["lapps:Token#pos"]``) are
-    recorded in ``metadata.contains`` so downstream annotators can
-    check for them via contract validation.
-    """
-    view = doc.views[0]
-
-    # Index existing annotations by id for fast lookup
-    existing_by_id: dict[str, int] = {
-        a.id: idx for idx, a in enumerate(view.annotations)
-    }
-    merged = list(view.annotations)
-
-    for ann in annotations:
-        if ann.id in existing_by_id:
-            # Merge features into the existing annotation
-            idx = existing_by_id[ann.id]
-            old = merged[idx]
-            merged_features = {**old.features, **ann.features}
-            merged[idx] = old.model_copy(update={"features": merged_features})
-        else:
-            existing_by_id[ann.id] = len(merged)
-            merged.append(ann)
-
-    new_contains = dict(view.metadata.contains)
-    for ann in annotations:
-        if ann.type not in new_contains:
-            new_contains[ann.type] = ContainsEntry(producer=producer, type=ann.type)
-    for feat in produces_feature or []:
-        if feat not in new_contains:
-            new_contains[feat] = ContainsEntry(producer=producer, type=feat)
-    new_metadata = ViewMetadata(contains=new_contains)
-    new_view = view.model_copy(update={"annotations": merged, "metadata": new_metadata})
-    return doc.model_copy(update={"views": [new_view]})
 
 
 async def _is_available(a: Annotator) -> bool:
@@ -143,26 +85,15 @@ async def annotate(request: AnnotateRequest):
             raise HTTPException(503, f"Annotator {ann.name!r} is not available")
 
         producer = annotator_uri(ann.name)
-        plan = compute_cache_plan(doc, producer, ann.lif_contract)
+        plan = CachePlan.compute(doc, producer, ann.lif_contract)
         if plan.skip_entirely:
             logger.debug("Cache hit for %s, skipping", ann.name)
             continue
 
-        doc = remove_stale_annotations(doc, producer, plan)
-
-        if ann.lif_contract.input_granularity and plan.miss_spans:
-            run_doc = build_filtered_document(doc, plan.miss_spans, ann.lif_contract)
-        else:
-            run_doc = doc
-
         try:
-            annotations = await ann.annotate(run_doc)
+            doc = await plan.execute(ann)
         except RuntimeError as exc:
             raise HTTPException(503, str(exc))
-        annotations = stamp_annotations(annotations, producer, ann.lif_contract, doc)
-        doc = _merge_annotations(
-            doc, annotations, producer, ann.lif_contract.produces_feature
-        )
 
     return doc.jsonld()
 

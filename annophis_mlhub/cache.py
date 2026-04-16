@@ -11,10 +11,13 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 
+from annophis_mlhub.annotators.base import Annotator
 from annophis_mlhub.lif import (
+    ContainsEntry,
     LIFAnnotation,
     LIFContract,
     LIFDocument,
+    ViewMetadata,
     _type_match_set,
 )
 
@@ -22,13 +25,6 @@ _CACHE_META_KEYS = {"input_hash", "granularity_span", "producer"}
 
 
 def _annotation_hash_data(ann: LIFAnnotation, strip_offsets: bool = False) -> str:
-    """Serialize an annotation for hashing, excluding cache-internal metadata.
-
-    When ``strip_offsets`` is True, ``start`` and ``end`` are also excluded.
-    This is used for per-span hashing where the text slice already captures
-    positional information; the model doesn't care where the span sits
-    within the document.
-    """
     updates: dict = {
         "metadata": {k: v for k, v in ann.metadata.items() if k not in _CACHE_META_KEYS}
     }
@@ -41,25 +37,17 @@ def _annotation_hash_data(ann: LIFAnnotation, strip_offsets: bool = False) -> st
     )
 
 
-def compute_input_hash(
+def _compute_input_hash(
     text: str,
     upstream_annotations: list[LIFAnnotation] | None = None,
     *,
     strip_offsets: bool = False,
 ) -> str:
-    """Deterministic hash of a work unit's effective input."""
     h = hashlib.sha256(text.encode())
     if upstream_annotations:
         for ann in sorted(upstream_annotations, key=lambda a: a.id):
             h.update(_annotation_hash_data(ann, strip_offsets=strip_offsets).encode())
     return h.hexdigest()[:16]
-
-
-@dataclass
-class CachePlan:
-    hits: list[LIFAnnotation] = field(default_factory=list)
-    miss_spans: list[tuple[int, int]] = field(default_factory=list)
-    skip_entirely: bool = False
 
 
 def _span_key(start: int, end: int) -> str:
@@ -71,7 +59,6 @@ def _annotations_in_range(
     start: int,
     end: int,
 ) -> list[LIFAnnotation]:
-    """Return annotations whose span falls within [start, end)."""
     return [
         a
         for a in annotations
@@ -86,9 +73,6 @@ def _annotations_by_producer(
     doc: LIFDocument,
     producer: str,
 ) -> list[LIFAnnotation]:
-    """Return all annotations in the document produced by a given annotator.
-    Only takes the first view into account.
-    """
     if not doc.views:
         return []
     return [
@@ -100,7 +84,6 @@ def _upstream_annotations(
     doc: LIFDocument,
     contract: LIFContract,
 ) -> list[LIFAnnotation]:
-    """Return annotations matching the contract's requires_annotation types."""
     if not doc.views or not contract.requires_annotation:
         return []
     required: set[str] = set()
@@ -109,205 +92,261 @@ def _upstream_annotations(
     return [a for a in doc.views[0].annotations if a.type in required]
 
 
-def compute_cache_plan(
-    doc: LIFDocument,
-    producer: str,
-    contract: LIFContract,
-) -> CachePlan:
-    """Determine which work units need recomputation."""
-    existing = _annotations_by_producer(doc, producer)
-    upstream = _upstream_annotations(doc, contract)
+@dataclass
+class CachePlan:
+    doc: LIFDocument
+    producer: str
+    contract: LIFContract
+    hits: list[LIFAnnotation] = field(default_factory=list)
+    miss_spans: list[tuple[int, int]] = field(default_factory=list)
+    skip_entirely: bool = False
 
-    # for no input granularity use full document as granularity span
-    if contract.input_granularity is None:
-        doc_hash = compute_input_hash(doc.text.value, upstream or None)
-        if existing and all(a.metadata.get("input_hash") == doc_hash for a in existing):
-            return CachePlan(hits=existing, skip_entirely=True)
-        return CachePlan(
-            miss_spans=[(0, len(doc.text.value))],
-        )
+    @staticmethod
+    def compute(
+        doc: LIFDocument,
+        producer: str,
+        contract: LIFContract,
+    ) -> CachePlan:
+        """Determine which work units need recomputation."""
+        existing = _annotations_by_producer(doc, producer)
+        upstream = _upstream_annotations(doc, contract)
 
-    granularity_spans: list[tuple[int, int]] = list(
-        doc.spans(contract.input_granularity)
-    )
-
-    # No spans of this type in the document: fall back to document-level
-    if not granularity_spans:
-        doc_hash = compute_input_hash(doc.text.value, upstream or None)
-        if existing and all(a.metadata.get("input_hash") == doc_hash for a in existing):
-            return CachePlan(hits=existing, skip_entirely=True)
-        return CachePlan(
-            miss_spans=[(0, len(doc.text.value))],
-        )
-
-    # Group existing annotations by span key and by input_hash
-    existing_by_span: dict[str, list[LIFAnnotation]] = {}
-    existing_by_hash: dict[str, list[tuple[str, LIFAnnotation]]] = {}
-    for a in existing:
-        key = a.metadata.get("granularity_span")
-        ihash = a.metadata.get("input_hash")
-        if key is not None:
-            existing_by_span.setdefault(key, []).append(a)
-        if ihash is not None and key is not None:
-            existing_by_hash.setdefault(ihash, []).append((key, a))
-
-    plan = CachePlan()
-    for start, end in granularity_spans:
-        key = _span_key(start, end)
-        text_slice = doc.text.value[start:end]
-        upstream_in_range = _annotations_in_range(upstream, start, end)
-        span_hash = compute_input_hash(
-            text_slice, upstream_in_range or None, strip_offsets=True
-        )
-
-        # Exact span key match
-        group = existing_by_span.get(key, [])
-        if group and all(a.metadata.get("input_hash") == span_hash for a in group):
-            plan.hits.extend(group)
-            continue
-
-        # Hash match: same content at different offsets (upstream edit shifted spans)
-        hash_group = existing_by_hash.get(span_hash)
-        if hash_group:
-            old_key = hash_group[0][0]
-            old_start = int(old_key.split(":")[0])
-            offset_delta = start - old_start
-            for _, a in hash_group:
-                plan.hits.append(
-                    a.model_copy(
-                        update={
-                            "start": (a.start or 0) + offset_delta,
-                            "end": (a.end or 0) + offset_delta,
-                            "metadata": {**a.metadata, "granularity_span": key},
-                        }
-                    )
-                )
-            del existing_by_hash[span_hash]
-            continue
-
-        plan.miss_spans.append((start, end))
-
-    plan.skip_entirely = len(plan.miss_spans) == 0
-    return plan
-
-
-def build_filtered_document(
-    doc: LIFDocument,
-    miss_spans: list[tuple[int, int]],
-    contract: LIFContract,
-) -> LIFDocument:
-    """Build a document containing only upstream annotations within miss spans.
-
-    The original text is preserved so character offsets remain valid.
-
-    However, since e.g. Sentence annotations are filtered to only those that span missed
-    parts of the document, a Sentence-level Annotators won't process the hit Sentences.
-    """
-    if not doc.views:
-        return doc
-
-    required_types: set[str] = set()
-    for t in contract.requires_annotation:
-        required_types |= _type_match_set(t)
-    filtered: list[LIFAnnotation] = []
-    for ann in doc.views[0].annotations:
-        if ann.type not in required_types:
-            continue
-        for start, end in miss_spans:
-            if (
-                ann.start is not None
-                and ann.end is not None
-                and ann.start >= start
-                and ann.end <= end
+        # No input granularity: use full document as single span
+        if contract.input_granularity is None:
+            doc_hash = _compute_input_hash(doc.text.value, upstream or None)
+            if existing and all(
+                a.metadata.get("input_hash") == doc_hash for a in existing
             ):
-                filtered.append(ann)
-                break
-
-    new_view = doc.views[0].model_copy(update={"annotations": filtered})
-    return doc.model_copy(update={"views": [new_view]})
-
-
-def stamp_annotations(
-    annotations: list[LIFAnnotation],
-    producer: str,
-    contract: LIFContract,
-    doc: LIFDocument,
-) -> list[LIFAnnotation]:
-    """Stamp input_hash, granularity_span, and producer on returned annotations."""
-    upstream = _upstream_annotations(doc, contract)
-
-    granularity_spans = (
-        list(doc.spans(contract.input_granularity))
-        if contract.input_granularity
-        else []
-    )
-
-    # Document-level: no granularity, or granularity type not present in doc
-    if not granularity_spans:
-        doc_hash = compute_input_hash(doc.text.value, upstream or None)
-        return [
-            a.model_copy(
-                update={
-                    "metadata": {
-                        **a.metadata,
-                        "input_hash": doc_hash,
-                        "producer": producer,
-                    }
-                }
+                return CachePlan(
+                    doc, producer, contract, hits=existing, skip_entirely=True
+                )
+            return CachePlan(
+                doc, producer, contract, miss_spans=[(0, len(doc.text.value))]
             )
-            for a in annotations
-        ]
 
-    stamped = []
-    for ann in annotations:
-        # Find which granularity span contains this annotation
-        span_key = None
-        span_hash = None
+        granularity_spans: list[tuple[int, int]] = list(
+            doc.spans(contract.input_granularity)
+        )
+
+        # No spans of this type in the document: fall back to document-level
+        if not granularity_spans:
+            doc_hash = _compute_input_hash(doc.text.value, upstream or None)
+            if existing and all(
+                a.metadata.get("input_hash") == doc_hash for a in existing
+            ):
+                return CachePlan(
+                    doc, producer, contract, hits=existing, skip_entirely=True
+                )
+            return CachePlan(
+                doc, producer, contract, miss_spans=[(0, len(doc.text.value))]
+            )
+
+        # Group existing annotations by span key and by input_hash
+        existing_by_span: dict[str, list[LIFAnnotation]] = {}
+        existing_by_hash: dict[str, list[tuple[str, LIFAnnotation]]] = {}
+        for a in existing:
+            key = a.metadata.get("granularity_span")
+            ihash = a.metadata.get("input_hash")
+            if key is not None:
+                existing_by_span.setdefault(key, []).append(a)
+            if ihash is not None and key is not None:
+                existing_by_hash.setdefault(ihash, []).append((key, a))
+
+        plan = CachePlan(doc, producer, contract)
         for start, end in granularity_spans:
-            if (
-                ann.start is not None
-                and ann.start >= start
-                and ann.end is not None
-                and ann.end <= end
-            ):
-                key = _span_key(start, end)
-                text_slice = doc.text.value[start:end]
-                upstream_in_range = _annotations_in_range(upstream, start, end)
-                span_hash = compute_input_hash(
-                    text_slice, upstream_in_range or None, strip_offsets=True
-                )
-                span_key = key
-                break
-
-        stamped.append(
-            ann.model_copy(
-                update={
-                    "metadata": {
-                        **ann.metadata,
-                        "input_hash": span_hash,
-                        "granularity_span": span_key,
-                        "producer": producer,
-                    }
-                }
+            key = _span_key(start, end)
+            text_slice = doc.text.value[start:end]
+            upstream_in_range = _annotations_in_range(upstream, start, end)
+            span_hash = _compute_input_hash(
+                text_slice, upstream_in_range or None, strip_offsets=True
             )
+
+            # Exact span key match
+            group = existing_by_span.get(key, [])
+            if group and all(a.metadata.get("input_hash") == span_hash for a in group):
+                plan.hits.extend(group)
+                continue
+
+            # Hash match: same content at different offsets
+            hash_group = existing_by_hash.get(span_hash)
+            if hash_group:
+                old_key = hash_group[0][0]
+                old_start = int(old_key.split(":")[0])
+                offset_delta = start - old_start
+                for _, a in hash_group:
+                    plan.hits.append(
+                        a.model_copy(
+                            update={
+                                "start": (a.start or 0) + offset_delta,
+                                "end": (a.end or 0) + offset_delta,
+                                "metadata": {
+                                    **a.metadata,
+                                    "granularity_span": key,
+                                },
+                            }
+                        )
+                    )
+                del existing_by_hash[span_hash]
+                continue
+
+            plan.miss_spans.append((start, end))
+
+        plan.skip_entirely = len(plan.miss_spans) == 0
+        return plan
+
+    async def execute(self, annotator: Annotator) -> LIFDocument:
+        """Run the full cache-aware annotation cycle and return the updated document."""
+        doc = self._remove_stale()
+        run_doc = self._build_filtered_document(doc)
+
+        annotations = await annotator.annotate(run_doc)
+        annotations = self._stamp(annotations, doc)
+        return self._merge(doc, annotations)
+
+    def _remove_stale(self) -> LIFDocument:
+        """Remove annotations from this producer that aren't cache hits."""
+        if not self.doc.views:
+            return self.doc
+
+        hit_ids = {a.id for a in self.hits}
+        kept = [
+            a
+            for a in self.doc.views[0].annotations
+            if a.metadata.get("producer") != self.producer or a.id in hit_ids
+        ]
+        new_view = self.doc.views[0].model_copy(update={"annotations": kept})
+        return self.doc.model_copy(update={"views": [new_view]})
+
+    def _build_filtered_document(self, doc: LIFDocument) -> LIFDocument:
+        """Build a document containing only upstream annotations within miss spans.
+
+        The original text is preserved so character offsets remain valid.
+        Since e.g. Sentence annotations are filtered to only those that span missed
+        parts of the document, a Sentence-level annotator won't process the hit sentences.
+        """
+        if not self.contract.input_granularity or not self.miss_spans or not doc.views:
+            return doc
+
+        required_types: set[str] = set()
+        for t in self.contract.requires_annotation:
+            required_types |= _type_match_set(t)
+        filtered: list[LIFAnnotation] = []
+        for ann in doc.views[0].annotations:
+            if ann.type not in required_types:
+                continue
+            for start, end in self.miss_spans:
+                if (
+                    ann.start is not None
+                    and ann.end is not None
+                    and ann.start >= start
+                    and ann.end <= end
+                ):
+                    filtered.append(ann)
+                    break
+
+        new_view = doc.views[0].model_copy(update={"annotations": filtered})
+        return doc.model_copy(update={"views": [new_view]})
+
+    def _stamp(
+        self, annotations: list[LIFAnnotation], doc: LIFDocument
+    ) -> list[LIFAnnotation]:
+        """Stamp input_hash, granularity_span, and producer on returned annotations."""
+        upstream = _upstream_annotations(doc, self.contract)
+
+        granularity_spans = (
+            list(doc.spans(self.contract.input_granularity))
+            if self.contract.input_granularity
+            else []
         )
-    return stamped
 
+        # Document-level: no granularity, or granularity type not present in doc
+        if not granularity_spans:
+            doc_hash = _compute_input_hash(doc.text.value, upstream or None)
+            return [
+                a.model_copy(
+                    update={
+                        "metadata": {
+                            **a.metadata,
+                            "input_hash": doc_hash,
+                            "producer": self.producer,
+                        }
+                    }
+                )
+                for a in annotations
+            ]
 
-def remove_stale_annotations(
-    doc: LIFDocument,
-    producer: str,
-    plan: CachePlan,
-) -> LIFDocument:
-    """Remove annotations from this producer that aren't cache hits."""
-    if not doc.views:
-        return doc
+        stamped = []
+        for ann in annotations:
+            span_key = None
+            span_hash = None
+            for start, end in granularity_spans:
+                if (
+                    ann.start is not None
+                    and ann.start >= start
+                    and ann.end is not None
+                    and ann.end <= end
+                ):
+                    key = _span_key(start, end)
+                    text_slice = doc.text.value[start:end]
+                    upstream_in_range = _annotations_in_range(upstream, start, end)
+                    span_hash = _compute_input_hash(
+                        text_slice, upstream_in_range or None, strip_offsets=True
+                    )
+                    span_key = key
+                    break
 
-    hit_ids = {a.id for a in plan.hits}
-    kept = [
-        a
-        for a in doc.views[0].annotations
-        if a.metadata.get("producer") != producer or a.id in hit_ids
-    ]
-    new_view = doc.views[0].model_copy(update={"annotations": kept})
-    return doc.model_copy(update={"views": [new_view]})
+            stamped.append(
+                ann.model_copy(
+                    update={
+                        "metadata": {
+                            **ann.metadata,
+                            "input_hash": span_hash,
+                            "granularity_span": span_key,
+                            "producer": self.producer,
+                        }
+                    }
+                )
+            )
+        return stamped
+
+    def _merge(self, doc: LIFDocument, annotations: list[LIFAnnotation]) -> LIFDocument:
+        """Merge annotations into the document's single view.
+
+        If an incoming annotation has the same ``id`` as an existing one,
+        its features are merged into the existing annotation. Annotations
+        with new ids are appended.
+
+        ``produces_feature`` entries are recorded in ``metadata.contains``
+        so downstream annotators can check for them via contract validation.
+        """
+        view = doc.views[0]
+
+        existing_by_id: dict[str, int] = {
+            a.id: idx for idx, a in enumerate(view.annotations)
+        }
+        merged = list(view.annotations)
+
+        for ann in annotations:
+            if ann.id in existing_by_id:
+                idx = existing_by_id[ann.id]
+                old = merged[idx]
+                merged_features = {**old.features, **ann.features}
+                merged[idx] = old.model_copy(update={"features": merged_features})
+            else:
+                existing_by_id[ann.id] = len(merged)
+                merged.append(ann)
+
+        new_contains = dict(view.metadata.contains)
+        for ann in annotations:
+            if ann.type not in new_contains:
+                new_contains[ann.type] = ContainsEntry(
+                    producer=self.producer, type=ann.type
+                )
+        for feat in self.contract.produces_feature or []:
+            if feat not in new_contains:
+                new_contains[feat] = ContainsEntry(producer=self.producer, type=feat)
+        new_metadata = ViewMetadata(contains=new_contains)
+        new_view = view.model_copy(
+            update={"annotations": merged, "metadata": new_metadata}
+        )
+        return doc.model_copy(update={"views": [new_view]})
