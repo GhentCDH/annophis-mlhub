@@ -3,7 +3,7 @@ name = "annophis-mlhub"
 version = "0.4.1"
 description = "Text annotation API"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.34",

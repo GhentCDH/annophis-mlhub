@@ -7,14 +7,14 @@ plus contract validation using pyld for CURIE expansion.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
 from pyld import jsonld
 
 from annophis_mlhub.config import settings
 
-type Context = dict[str, str | Context]
+Context: TypeAlias = dict[str, "str | Context"]
 
 # Default context used for expanding CURIEs in contracts and annotations.
 LAPPS_CONTEXT: Context = {
