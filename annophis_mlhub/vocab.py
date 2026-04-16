@@ -8,18 +8,13 @@ mint their own vocabulary URIs.
 from pyld import jsonld
 
 from annophis_mlhub.config import settings
+from annophis_mlhub.lif import LAPPS_CONTEXT
 
 
 def _build() -> dict:
     base = settings.vocab_base_url.rstrip("/") + "/"
 
-    ctx = {
-        "annophis_mlhub": base,
-        "owl": "http://www.w3.org/2002/07/owl#",
-        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-        "dcterms": "http://purl.org/dc/terms/",
-    }
+    ctx = LAPPS_CONTEXT
 
     vocab = {
         "@context": ctx,
