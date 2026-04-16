@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from annophis_mlhub.lif import LIFAnnotation, LIFDocument
 
@@ -8,14 +8,14 @@ class Health(BaseModel):
 
 
 class WsInputUnit(BaseModel):
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
 
     id: str
     document: LIFDocument
 
 
 class WsOutputUnit(BaseModel):
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
 
     id: str
     annotator: str
