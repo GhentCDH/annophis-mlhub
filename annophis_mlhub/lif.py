@@ -37,11 +37,13 @@ LAPPS_CONTEXT: Context = {
     "pos": "token:pos",
     "word": "token:word",
     # Annohub extensions
+    "owl": "http://www.w3.org/2002/07/owl#",
     "lapps": "http://vocab.lappsgrid.org/",
     "lexvo": "http://lexvo.org/id/iso639-3/",
     "dcterms": "http://purl.org/dc/terms/",
     "annophis_mlhub": settings.vocab_base_url.rstrip("/") + "/",
     "annotators": settings.base_url.rstrip("/") + "/annotators/",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "input_hash": "annophis_mlhub:inputHash",
     "granularity_span": "annophis_mlhub:granularitySpan",
@@ -105,6 +107,12 @@ class LIFView(BaseModel):
     annotations: list[LIFAnnotation] = []
 
 
+def _type_match_set(annotation_type: str) -> set[str]:
+    """Build a set of equivalent type strings for flexible matching."""
+    expanded = expand_curie(annotation_type)
+    return {annotation_type, expanded, _local_name(expanded)}
+
+
 class LIFDocument(BaseModel):
     """Top-level LAPPS Interchange Format document."""
 
@@ -125,11 +133,16 @@ class LIFDocument(BaseModel):
     def annotations(
         self, annotation_type: str, view: int = 0
     ) -> Iterator[LIFAnnotation]:
-        """Yield all annotations of the given type from a view."""
+        """Yield all annotations of the given type from a view.
+
+        Matches flexibly: ``"Sentence"``, ``"lapps:Sentence"`` and
+        ``"http://vocab.lappsgrid.org/Sentence"`` all match each other.
+        """
         if view >= len(self.views):
             return
+        match_set = _type_match_set(annotation_type)
         for ann in self.views[view].annotations:
-            if ann.type == annotation_type:
+            if ann.type in match_set:
                 yield ann
 
     def spans(self, annotation_type: str, view: int = 0) -> Iterator[tuple[int, int]]:

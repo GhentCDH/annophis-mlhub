@@ -8,14 +8,14 @@ The LIFDocument itself acts as the cache: no external storage needed.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 
 from annophis_mlhub.lif import (
     LIFAnnotation,
     LIFContract,
     LIFDocument,
-    _local_name,
-    expand_curie,
+    _type_match_set,
 )
 
 _CACHE_META_KEYS = {"input_hash", "granularity_span", "producer"}
@@ -36,7 +36,9 @@ def _annotation_hash_data(ann: LIFAnnotation, strip_offsets: bool = False) -> st
         updates["start"] = None
         updates["end"] = None
     clean = ann.model_copy(update=updates)
-    return clean.model_dump_json(by_alias=True, exclude_none=True)
+    return json.dumps(
+        clean.model_dump(by_alias=True, exclude_none=True), sort_keys=True
+    )
 
 
 def compute_input_hash(
@@ -56,7 +58,9 @@ def compute_input_hash(
 @dataclass
 class CachePlan:
     hits: list[LIFAnnotation] = field(default_factory=list)
+    # Which parts of the document don't match the previously hashed versions
     miss_spans: list[tuple[int, int]] = field(default_factory=list)
+    # New input hash for the missed spans
     miss_hashes: dict[str, str] = field(default_factory=dict)  # "start:end" -> hash
     skip_entirely: bool = False
 
@@ -85,23 +89,14 @@ def _annotations_by_producer(
     doc: LIFDocument,
     producer: str,
 ) -> list[LIFAnnotation]:
-    """Return all annotations in the document produced by a given annotator."""
+    """Return all annotations in the document produced by a given annotator.
+    Only takes the first view into account.
+    """
     if not doc.views:
         return []
     return [
         a for a in doc.views[0].annotations if a.metadata.get("producer") == producer
     ]
-
-
-def _expand_type_set(types: list[str]) -> set[str]:
-    """Build a set containing both bare names and expanded URIs for matching."""
-    result = set()
-    for t in types:
-        result.add(t)
-        expanded = expand_curie(t)
-        result.add(expanded)
-        result.add(_local_name(expanded))
-    return result
 
 
 def _upstream_annotations(
@@ -111,7 +106,9 @@ def _upstream_annotations(
     """Return annotations matching the contract's requires_annotation types."""
     if not doc.views or not contract.requires_annotation:
         return []
-    required = _expand_type_set(contract.requires_annotation)
+    required: set[str] = set()
+    for t in contract.requires_annotation:
+        required |= _type_match_set(t)
     return [a for a in doc.views[0].annotations if a.type in required]
 
 
@@ -212,7 +209,9 @@ def build_filtered_document(
     if not doc.views:
         return doc
 
-    required_types = _expand_type_set(contract.requires_annotation)
+    required_types: set[str] = set()
+    for t in contract.requires_annotation:
+        required_types |= _type_match_set(t)
     filtered: list[LIFAnnotation] = []
     for ann in doc.views[0].annotations:
         if ann.type not in required_types:
