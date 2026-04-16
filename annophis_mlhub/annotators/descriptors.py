@@ -14,9 +14,9 @@ def annotator_uri(name: str) -> str:
 
 def build_descriptor_context() -> list:
     """Return the shared ``@context`` for annotator descriptors."""
-    from annophis_mlhub.lif import DEFAULT_CONTEXT
+    from annophis_mlhub.lif import LAPPS_CONTEXT
 
-    return [DEFAULT_CONTEXT]
+    return [LAPPS_CONTEXT]
 
 
 def build_descriptor_node(annotator: Any) -> dict[str, Any]:

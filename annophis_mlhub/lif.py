@@ -16,14 +16,40 @@ from annophis_mlhub.config import settings
 
 type Context = dict[str, str | Context]
 
-LAPPS_CONTEXT: list[str | Context] = [
-    "http://vocab.lappsgrid.org/context-1.0.0.jsonld",
-    # lexvo is not defined in the LAPPS context
-    {"lexvo": "http://lexvo.org/id/iso639-3/"},
-]
-
 # Default context used for expanding CURIEs in contracts and annotations.
-DEFAULT_CONTEXT: Context = {
+LAPPS_CONTEXT: Context = {
+    # ── LAPPS Grid vocabulary (inlined from context-1.0.0.jsonld) ──
+    "@vocab": "http://vocab.lappsgrid.org/",
+    "meta": "http://vocab.lappsgrid.org/metadata/",
+    "lif": "http://vocab.lappsgrid.org/interchange/",
+    "types": "http://vocab.lappsgrid.org/types/",
+    "metadata": "meta:metadata",
+    "contains": "meta:contains",
+    "producer": "meta:producer",
+    "url": {"@id": "meta:url", "@type": "@id"},
+    "type": {"@id": "meta:type", "@type": "@id"},
+    "version": "meta:version",
+    "text": "lif:text",
+    "steps": "lif:steps",
+    "annotations": "lif:annotations",
+    "tokenization": "types:tokenization/",
+    "tagset": "types:posType/",
+    "ner": "types:ner/",
+    "coref": "types:coref/",
+    "chunk": "types:chunk/",
+    "token": "http://vocab.lappsgrid.org/Token#",
+    "common": "http://vocab.lappsgrid.org/Annotation#",
+    "id": "common:id",
+    "start": "common:start",
+    "end": "common:end",
+    "label": "common:label",
+    "pos": "token:pos",
+    "lemma": "token:lemma",
+    "kind": "token:kind",
+    "word": "token:word",
+    "length": "token:length",
+    "orth": "token:orth",
+    # ── Annohub extensions ──
     "lapps": "http://vocab.lappsgrid.org/",
     "lexvo": "http://lexvo.org/id/iso639-3/",
     "dcterms": "http://purl.org/dc/terms/",
@@ -37,6 +63,11 @@ DEFAULT_CONTEXT: Context = {
     "annophis_mlhub:producesFeature": {"@type": "@id"},
     "annophis_mlhub:inputGranularity": {"@type": "@id"},
 }
+
+
+def normalize(doc: Any):
+    expanded = jsonld.expand(doc)
+    return jsonld.compact(expanded, LAPPS_CONTEXT)
 
 
 class LIFText(BaseModel):
@@ -128,9 +159,13 @@ class LIFDocument(BaseModel):
         """Yield ``(start, end)`` pairs for Token annotations."""
         return self.spans("Token", view)
 
+    def jsonld(self) -> dict[str, Any]:
+        """Return a JSON-LD representation of this document."""
+        return self.model_dump(by_alias=True, exclude_none=True)
+
     @property
     def full_context(self) -> Context:
-        ctx = dict(DEFAULT_CONTEXT)
+        ctx = dict(LAPPS_CONTEXT)
         if isinstance(self.context, dict):
             ctx.update(self.context)
         elif isinstance(self.context, list):
@@ -172,7 +207,7 @@ def expand_curie(curie: str, context: Context | None = None) -> str:
     Uses pyld for spec-compliant expansion.  Falls back to the input string
     if expansion produces no result (i.e. it was already a full URI or unknown prefix).
     """
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or LAPPS_CONTEXT
     doc = {"@context": ctx, "@type": curie}
     expanded = jsonld.expand(doc)
     if expanded and "@type" in expanded[0]:
@@ -189,7 +224,7 @@ def _view_contains_types(view: LIFView, context: Context | None = None) -> set[s
     (e.g. ``"http://vocab.lappsgrid.org/Sentence"``), so matching works
     regardless of whether the contract uses CURIEs or bare names.
     """
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or LAPPS_CONTEXT
     result = set()
     for type_key in view.metadata.contains:
         result.add(type_key)  # bare name

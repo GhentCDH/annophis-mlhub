@@ -167,7 +167,7 @@ async def annotate(request: AnnotateRequest):
             doc, annotations, producer, ann.lif_contract.produces_feature
         )
 
-    return doc.model_dump(by_alias=True, exclude_none=True)
+    return doc.jsonld()
 
 
 @router.websocket("/annotate")

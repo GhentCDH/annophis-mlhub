@@ -5,20 +5,24 @@ http://vocab.annophis_mlhub.org/).  This allows self-hosted deployments to
 mint their own vocabulary URIs.
 """
 
+from pyld import jsonld
+
 from annophis_mlhub.config import settings
 
 
 def _build() -> dict:
     base = settings.vocab_base_url.rstrip("/") + "/"
 
-    return {
-        "@context": {
-            "annophis_mlhub": base,
-            "owl": "http://www.w3.org/2002/07/owl#",
-            "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-            "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-            "dcterms": "http://purl.org/dc/terms/",
-        },
+    ctx = {
+        "annophis_mlhub": base,
+        "owl": "http://www.w3.org/2002/07/owl#",
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "dcterms": "http://purl.org/dc/terms/",
+    }
+
+    vocab = {
+        "@context": ctx,
         "@graph": [
             {
                 "@id": base,
@@ -115,6 +119,10 @@ def _build() -> dict:
             },
         ],
     }
+
+    vocab = jsonld.compact(vocab, ctx)
+
+    return vocab
 
 
 VOCABULARY = _build()
