@@ -94,9 +94,6 @@ def test_lif_document_from_json_ld():
     assert "Sentence" in doc.views[0].metadata.contains
 
 
-# ── Convenience accessor tests ───────────────────────────────────────────
-
-
 def _doc_with_annotations():
     return LIFDocument(
         text=LIFText(value="Alice met Bob."),

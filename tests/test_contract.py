@@ -3,12 +3,12 @@
 from annophis_mlhub import annotators
 from annophis_mlhub.annotators.local import LocalAnnotator
 from annophis_mlhub.lif import (
+    ContainsEntry,
     LIFAnnotation,
     LIFContract,
     LIFDocument,
     LIFText,
     LIFView,
-    ContainsEntry,
     ViewMetadata,
     validate_lif_contract,
 )
@@ -177,7 +177,7 @@ def test_contract_pipeline_chaining(client):
     assert "NamedEntity" in contains
 
 
-# --- Direct contract validation tests ---
+# Direct contract validation tests
 
 
 class TestLanguageValidation:

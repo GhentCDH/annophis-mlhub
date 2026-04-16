@@ -37,9 +37,6 @@ def _make_sentence_annotations(spans: list[tuple[int, int]]):
     ]
 
 
-# ── compute_input_hash ──────────────────────────────────────────────────────
-
-
 def test_hash_deterministic():
     assert compute_input_hash("hello") == compute_input_hash("hello")
 
@@ -53,9 +50,6 @@ def test_hash_differs_on_upstream():
     h1 = compute_input_hash("hello", [ann])
     h2 = compute_input_hash("hello", None)
     assert h1 != h2
-
-
-# ── compute_cache_plan (document-level) ─────────────────────────────────────
 
 
 def test_doc_level_all_miss():
@@ -85,9 +79,6 @@ def test_doc_level_cache_hit():
     plan = compute_cache_plan(doc, PRODUCER, contract)
     assert plan.skip_entirely
     assert len(plan.hits) == 1
-
-
-# ── compute_cache_plan (per-span) ──────────────────────────────────────────
 
 
 def test_per_span_all_miss():
@@ -175,9 +166,6 @@ def test_per_span_all_hit():
     assert len(plan.hits) == 2
 
 
-# ── build_filtered_document ─────────────────────────────────────────────────
-
-
 def test_filtered_doc_keeps_text():
     doc = _make_doc("a b c. d e f.")
     sentences = _make_sentence_annotations([(0, 6), (7, 13)])
@@ -189,9 +177,6 @@ def test_filtered_doc_keeps_text():
     assert filtered.text.value == "a b c. d e f."  # full text preserved
     assert len(filtered.views[0].annotations) == 1
     assert filtered.views[0].annotations[0].id == "s0"
-
-
-# ── stamp_annotations ──────────────────────────────────────────────────────
 
 
 def test_stamp_doc_level():
@@ -220,9 +205,6 @@ def test_stamp_per_span():
     stamped = stamp_annotations([ann], PRODUCER, contract, doc)
     assert stamped[0].metadata["granularity_span"] == "0:6"
     assert stamped[0].metadata["input_hash"] is not None
-
-
-# ── remove_stale_annotations ───────────────────────────────────────────────
 
 
 def test_remove_stale():
@@ -256,9 +238,6 @@ def test_remove_stale():
     assert "keep" in ids
     assert "other" in ids
     assert "remove" not in ids
-
-
-# ── Integration: pipeline with caching ──────────────────────────────────────
 
 
 class SentenceSplitter(LocalAnnotator):
@@ -352,9 +331,6 @@ def test_pipeline_caching_integration(client):
     )
     assert resp.status_code == 200
     assert tokenizer.call_count == 1  # not called again
-
-
-# ── Granularity without matching spans (fallback to document-level) ─────────
 
 
 def test_granularity_without_spans_falls_back_to_doc_level():

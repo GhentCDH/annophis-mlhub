@@ -33,7 +33,6 @@ def _build() -> dict:
                     "their capabilities, and their input/output contracts."
                 ),
             },
-            # ── Classes ──────────────────────────────────────────────────────
             {
                 "@id": "annophis_mlhub:Annotator",
                 "@type": "owl:Class",
@@ -43,7 +42,6 @@ def _build() -> dict:
                     "and produces annotations."
                 ),
             },
-            # ── Object properties ─────────────────────────────────────────────
             {
                 "@id": "annophis_mlhub:requiresAnnotation",
                 "@type": "owl:ObjectProperty",

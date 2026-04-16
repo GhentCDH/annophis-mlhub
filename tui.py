@@ -26,9 +26,6 @@ BASE_URL = "http://localhost:8000"
 console = Console()
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-
 def fetch_annotators(base_url: str) -> list[dict]:
     with httpx.Client() as client:
         resp = client.get(f"{base_url}/annotators", timeout=5)
@@ -208,14 +205,10 @@ def run_pipeline(base_url: str, text: str, meta: dict, pipeline: list[dict]) -> 
     console.print(document_tree(doc))
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
-
-
 def main() -> None:
     console.rule("[bold blue]annophis_mlhub[/bold blue]")
     console.print()
 
-    # ── fetch annotators ──────────────────────────────────────────────────────
     try:
         all_ann = fetch_annotators(BASE_URL)
     except Exception as e:
@@ -232,7 +225,6 @@ def main() -> None:
 
     by_name = {a["name"]: a for a in available}
 
-    # ── build pipeline ────────────────────────────────────────────────────────
     console.print(
         "[dim]Build a pipeline by adding annotators in order.\n"
         "Type a name (or number) to add, 'done' to finish, 'rm' to remove last.[/dim]"
@@ -278,7 +270,6 @@ def main() -> None:
         pipeline.append(by_name[raw])
         console.print(f"  [green]+[/green] {raw}")
 
-    # ── validate pipeline contracts ───────────────────────────────────────────
     console.print()
     initial_keys = {"text", "meta"}
     console.print(pipeline_panel(pipeline, initial_keys))
@@ -296,7 +287,6 @@ def main() -> None:
             console.print("[dim]Aborted.[/dim]")
             sys.exit(0)
 
-    # ── text input ────────────────────────────────────────────────────────────
     console.print()
     source = Prompt.ask("Text or path to file").strip()
     path = Path(source)
@@ -310,7 +300,6 @@ def main() -> None:
         console.print("[yellow]No text provided.[/yellow]")
         sys.exit(1)
 
-    # ── optional meta ─────────────────────────────────────────────────────────
     meta_raw = Prompt.ask("Meta (JSON, or empty)", default="").strip()
     meta: dict = {}
     if meta_raw:
@@ -321,7 +310,6 @@ def main() -> None:
         except Exception:
             console.print("[yellow]Invalid JSON, ignoring meta.[/yellow]")
 
-    # ── run ───────────────────────────────────────────────────────────────────
     try:
         run_pipeline(BASE_URL, text, meta, pipeline)
     except KeyboardInterrupt:

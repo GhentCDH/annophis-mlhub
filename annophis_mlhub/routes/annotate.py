@@ -114,7 +114,6 @@ async def annotate(request: AnnotateRequest):
     all_annotators = annotators.all()
     doc = _ensure_view(request.document)
 
-    # ── Static pre-check: validate the full pipeline before running anything ──
     pipeline: list[Annotator] = []
     projected = doc
     for name in request.annotators:
@@ -139,7 +138,6 @@ async def annotate(request: AnnotateRequest):
         )
         pipeline.append(ann)
 
-    # ── Execute: all contracts are satisfiable, run the pipeline ──────────
     for ann in pipeline:
         if not await _is_available(ann):
             raise HTTPException(503, f"Annotator {ann.name!r} is not available")

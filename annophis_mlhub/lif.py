@@ -18,7 +18,6 @@ type Context = dict[str, str | Context]
 
 # Default context used for expanding CURIEs in contracts and annotations.
 LAPPS_CONTEXT: Context = {
-    # ── LAPPS Grid vocabulary (inlined from context-1.0.0.jsonld) ──
     "@vocab": "http://vocab.lappsgrid.org/",
     "meta": "http://vocab.lappsgrid.org/metadata/",
     "lif": "http://vocab.lappsgrid.org/interchange/",
@@ -37,7 +36,7 @@ LAPPS_CONTEXT: Context = {
     "label": "common:label",
     "pos": "token:pos",
     "word": "token:word",
-    # ── Annohub extensions ──
+    # Annohub extensions
     "lapps": "http://vocab.lappsgrid.org/",
     "lexvo": "http://lexvo.org/id/iso639-3/",
     "dcterms": "http://purl.org/dc/terms/",
@@ -123,8 +122,6 @@ class LIFDocument(BaseModel):
     metadata: dict[str, Any] = {}
     views: list[LIFView] = []
 
-    # ── Convenience accessors ───────────────────────────────────────────
-
     def annotations(
         self, annotation_type: str, view: int = 0
     ) -> Iterator[LIFAnnotation]:
@@ -171,9 +168,6 @@ class LIFDocument(BaseModel):
                 if isinstance(entry, dict):
                     ctx.update(entry)
         return ctx
-
-
-# ── Contract ─────────────────────────────────────────────────────────────────
 
 
 class LIFContract(BaseModel):

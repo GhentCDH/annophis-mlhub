@@ -1,8 +1,8 @@
 """Content-addressed annotation caching.
 
 Computes input hashes per work unit so the pipeline can skip recomputation
-when upstream annotations haven't changed.  The LIFDocument itself acts as
-the cache — no external storage needed.
+when upstream annotations haven't changed.
+The LIFDocument itself acts as the cache: no external storage needed.
 """
 
 from __future__ import annotations
@@ -18,9 +18,6 @@ from annophis_mlhub.lif import (
     expand_curie,
 )
 
-# ── Hashing ─────────────────────────────────────────────────────────────────
-
-
 _CACHE_META_KEYS = {"input_hash", "granularity_span", "producer"}
 
 
@@ -29,7 +26,7 @@ def _annotation_hash_data(ann: LIFAnnotation, strip_offsets: bool = False) -> st
 
     When ``strip_offsets`` is True, ``start`` and ``end`` are also excluded.
     This is used for per-span hashing where the text slice already captures
-    positional information — the model doesn't care where the span sits
+    positional information; the model doesn't care where the span sits
     within the document.
     """
     updates: dict = {
@@ -54,9 +51,6 @@ def compute_input_hash(
         for ann in sorted(upstream_annotations, key=lambda a: a.id):
             h.update(_annotation_hash_data(ann, strip_offsets=strip_offsets).encode())
     return h.hexdigest()[:16]
-
-
-# ── Cache plan ──────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -130,7 +124,7 @@ def compute_cache_plan(
     existing = _annotations_by_producer(doc, producer)
     upstream = _upstream_annotations(doc, contract)
 
-    # ── Document-level (no granularity) ─────────────────────────────────
+    # for no input granularity use full document as granularity span
     if contract.input_granularity is None:
         doc_hash = compute_input_hash(doc.text.value, upstream or None)
         if existing and all(a.metadata.get("input_hash") == doc_hash for a in existing):
@@ -140,12 +134,11 @@ def compute_cache_plan(
             miss_hashes={_span_key(0, len(doc.text.value)): doc_hash},
         )
 
-    # ── Per-span granularity ────────────────────────────────────────────
     granularity_spans: list[tuple[int, int]] = list(
         doc.spans(contract.input_granularity)
     )
 
-    # No spans of this type in the document — fall back to document-level
+    # No spans of this type in the document: fall back to document-level
     if not granularity_spans:
         doc_hash = compute_input_hash(doc.text.value, upstream or None)
         if existing and all(a.metadata.get("input_hash") == doc_hash for a in existing):
@@ -207,9 +200,6 @@ def compute_cache_plan(
     return plan
 
 
-# ── Filtered document ───────────────────────────────────────────────────────
-
-
 def build_filtered_document(
     doc: LIFDocument,
     miss_spans: list[tuple[int, int]],
@@ -239,9 +229,6 @@ def build_filtered_document(
 
     new_view = doc.views[0].model_copy(update={"annotations": filtered})
     return doc.model_copy(update={"views": [new_view]})
-
-
-# ── Stamp annotations ──────────────────────────────────────────────────────
 
 
 def stamp_annotations(
@@ -309,9 +296,6 @@ def stamp_annotations(
             )
         )
     return stamped
-
-
-# ── Remove stale annotations ───────────────────────────────────────────────
 
 
 def remove_stale_annotations(
