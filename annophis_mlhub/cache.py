@@ -199,6 +199,9 @@ def build_filtered_document(
     """Build a document containing only upstream annotations within miss spans.
 
     The original text is preserved so character offsets remain valid.
+
+    However, since e.g. Sentence annotations are filtered to only those that span missed
+    parts of the document, a Sentence-level Annotators won't process the hit Sentences.
     """
     if not doc.views:
         return doc
