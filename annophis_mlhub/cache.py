@@ -58,10 +58,7 @@ def compute_input_hash(
 @dataclass
 class CachePlan:
     hits: list[LIFAnnotation] = field(default_factory=list)
-    # Which parts of the document don't match the previously hashed versions
     miss_spans: list[tuple[int, int]] = field(default_factory=list)
-    # New input hash for the missed spans
-    miss_hashes: dict[str, str] = field(default_factory=dict)  # "start:end" -> hash
     skip_entirely: bool = False
 
 
@@ -128,7 +125,6 @@ def compute_cache_plan(
             return CachePlan(hits=existing, skip_entirely=True)
         return CachePlan(
             miss_spans=[(0, len(doc.text.value))],
-            miss_hashes={_span_key(0, len(doc.text.value)): doc_hash},
         )
 
     granularity_spans: list[tuple[int, int]] = list(
@@ -142,7 +138,6 @@ def compute_cache_plan(
             return CachePlan(hits=existing, skip_entirely=True)
         return CachePlan(
             miss_spans=[(0, len(doc.text.value))],
-            miss_hashes={_span_key(0, len(doc.text.value)): doc_hash},
         )
 
     # Group existing annotations by span key and by input_hash
@@ -191,7 +186,6 @@ def compute_cache_plan(
             continue
 
         plan.miss_spans.append((start, end))
-        plan.miss_hashes[key] = span_hash
 
     plan.skip_entirely = len(plan.miss_spans) == 0
     return plan
