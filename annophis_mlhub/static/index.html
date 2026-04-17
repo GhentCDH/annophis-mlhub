@@ -663,16 +663,17 @@
 
       function annotatorTags(a) {
         const tags = [];
+        const val = (item) => typeof item === "string" ? item : item["@id"];
         for (const item of a["annophis_mlhub:requiresLanguage"] || [])
-          tags.push({ text: item["@id"], cls: "tag-requires" });
+          tags.push({ text: val(item), cls: "tag-requires" });
         for (const item of a["annophis_mlhub:requiresAnnotation"] || [])
-          tags.push({ text: item["@id"], cls: "tag-requires" });
+          tags.push({ text: val(item), cls: "tag-requires" });
         for (const item of a["annophis_mlhub:requiresFeature"] || [])
-          tags.push({ text: item["@id"], cls: "tag-requires" });
+          tags.push({ text: val(item), cls: "tag-requires" });
         for (const item of a["annophis_mlhub:producesAnnotation"] || [])
-          tags.push({ text: item["@id"], cls: "tag-produces" });
+          tags.push({ text: val(item), cls: "tag-produces" });
         for (const item of a["annophis_mlhub:producesFeature"] || [])
-          tags.push({ text: item["@id"], cls: "tag-produces" });
+          tags.push({ text: val(item), cls: "tag-produces" });
         return tags;
       }
 
