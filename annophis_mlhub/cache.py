@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass, field
 
 from annophis_mlhub.annotators.base import Annotator
@@ -20,6 +21,8 @@ from annophis_mlhub.lif import (
     ViewMetadata,
     _type_match_set,
 )
+
+logger = logging.getLogger(__name__)
 
 _CACHE_META_KEYS = {"input_hash", "granularity_span", "producer"}
 
@@ -111,15 +114,27 @@ class CachePlan:
         existing = _annotations_by_producer(doc, producer)
         upstream = _upstream_annotations(doc, contract)
 
+        logger.debug(
+            "%s: computing cache plan (%d existing annotations)",
+            producer,
+            len(existing),
+        )
+
         # No input granularity: use full document as single span
         if contract.input_granularity is None:
             doc_hash = _compute_input_hash(doc.text.value, upstream or None)
             if existing and all(
                 a.metadata.get("input_hash") == doc_hash for a in existing
             ):
+                logger.debug(
+                    "%s: full cache hit (doc-level, %d annotations)",
+                    producer,
+                    len(existing),
+                )
                 return CachePlan(
                     doc, producer, contract, hits=existing, skip_entirely=True
                 )
+            logger.debug("%s: cache miss (doc-level)", producer)
             return CachePlan(
                 doc, producer, contract, miss_spans=[(0, len(doc.text.value))]
             )
@@ -130,10 +145,16 @@ class CachePlan:
 
         # No spans of this type in the document: fall back to document-level
         if not granularity_spans:
+            logger.debug(
+                "%s: no %s spans found, falling back to doc-level",
+                producer,
+                contract.input_granularity,
+            )
             doc_hash = _compute_input_hash(doc.text.value, upstream or None)
             if existing and all(
                 a.metadata.get("input_hash") == doc_hash for a in existing
             ):
+                logger.debug("%s: full cache hit (doc-level fallback)", producer)
                 return CachePlan(
                     doc, producer, contract, hits=existing, skip_entirely=True
                 )
@@ -164,6 +185,12 @@ class CachePlan:
             # Exact span key match
             group = existing_by_span.get(key, [])
             if group and all(a.metadata.get("input_hash") == span_hash for a in group):
+                logger.debug(
+                    "%s: span %s hit (exact match, %d annotations)",
+                    producer,
+                    key,
+                    len(group),
+                )
                 plan.hits.extend(group)
                 continue
 
@@ -187,11 +214,22 @@ class CachePlan:
                         )
                     )
                 del existing_by_hash[span_hash]
+                logger.debug(
+                    "%s: span %s hit (relocated from %s)", producer, key, old_key
+                )
                 continue
 
             plan.miss_spans.append((start, end))
+            logger.debug("%s: span %s miss", producer, key)
 
         plan.skip_entirely = len(plan.miss_spans) == 0
+        logger.debug(
+            "%s: plan complete — %d hits, %d misses, skip=%s",
+            producer,
+            len(plan.hits),
+            len(plan.miss_spans),
+            plan.skip_entirely,
+        )
         return plan
 
     async def execute(self, annotator: Annotator) -> LIFDocument:
@@ -199,7 +237,15 @@ class CachePlan:
         doc = self._remove_stale()
         run_doc = self._build_filtered_document(doc)
 
+        logger.debug(
+            "%s: running annotator on %d miss spans",
+            self.producer,
+            len(self.miss_spans),
+        )
         annotations = await annotator.annotate(run_doc)
+        logger.debug(
+            "%s: annotator produced %d annotations", self.producer, len(annotations)
+        )
         annotations = self._stamp(annotations, doc)
         return self._merge(doc, annotations)
 

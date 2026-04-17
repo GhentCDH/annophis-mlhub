@@ -1,4 +1,5 @@
 import logging
+import os
 
 import uvicorn
 from rich.logging import RichHandler
@@ -6,7 +7,7 @@ from rich.logging import RichHandler
 from annophis_mlhub.config import settings
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
     format="%(message)s",
     datefmt="[%X]",
     handlers=[RichHandler(rich_tracebacks=True)],
