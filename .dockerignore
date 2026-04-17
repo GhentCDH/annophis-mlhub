@@ -8,4 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
-/annophis_mlhub.tar.gz
+bruno/
+examples/
+*.md
+!README.md
+prek.toml
+shell.nix
+tui.py
+tests/
